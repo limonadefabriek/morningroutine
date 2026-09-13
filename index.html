@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="8 Minutes">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon.png">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<title>8 Minutes</title>
+<style>
+:root{
+  --bg:#0a0a0b;
+  --ink:#ece9e3;
+  --soft:#7d7a74;
+  --dim:#4a4845;
+  --rule:#212125;
+  --accent:#c3f04a;
+  --warn:#ff8a5c;
+  --stage:#111114;
+  --sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg);color:var(--ink);
+  font:16px/1.5 var(--sans);
+  -webkit-font-smoothing:antialiased;
+  overscroll-behavior-y:contain;
+}
+body.paused{opacity:.55}
+#app{max-width:520px;margin:0 auto;padding-bottom:env(safe-area-inset-bottom)}
+
+h1,h2{font-weight:800;letter-spacing:-.035em;text-transform:uppercase;margin:0}
+.dim{color:var(--dim)}
+.eyebrow{
+  margin:0 0 12px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--accent);font-weight:700;
+}
+
+/* ---------------- home ---------------- */
+.mast{padding:calc(34px + env(safe-area-inset-top)) 20px 20px;border-bottom:1px solid var(--rule)}
+.mast h1{font-size:34px;line-height:1}
+.lede{color:var(--soft);font-size:15px;margin:12px 0 0;max-width:38ch}
+.stats{display:flex;gap:20px;margin:16px 0 0;font-size:11px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--soft);font-weight:600;flex-wrap:wrap}
+.stats b{color:var(--ink);font-size:15px;font-weight:800;letter-spacing:-.02em;margin-right:5px}
+.stats.center{justify-content:center}
+
+.banner{
+  display:flex;width:100%;align-items:center;justify-content:space-between;gap:12px;
+  background:var(--accent);color:#0a0a0b;border:0;text-align:left;
+  padding:15px 20px;font:700 12px/1.3 var(--sans);letter-spacing:.1em;text-transform:uppercase;
+  cursor:pointer;
+}
+.banner .arrow{font-size:16px}
+
+.rows{list-style:none;margin:0;padding:0}
+.row{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--rule)}
+.row-n{font-size:11px;font-weight:800;color:var(--dim);letter-spacing:.06em;width:18px;flex:0 0 auto}
+.row-body{flex:1;min-width:0}
+.row-name{display:block;font-size:15.5px;font-weight:600;letter-spacing:-.015em}
+.row-sub{display:block;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin-top:3px}
+.row-fig{flex:0 0 76px;width:76px;opacity:.75}
+.row-fig svg{display:block;width:100%;height:auto}
+
+.pad{padding:24px 20px 40px}
+.cta{
+  display:block;width:100%;border:0;cursor:pointer;
+  background:var(--accent);color:#0a0a0b;
+  padding:20px;font:800 15px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;
+  margin-bottom:12px;
+}
+.cta.ghost{background:none;color:var(--soft);border:1px solid var(--rule)}
+.minor{display:flex;gap:8px;margin-bottom:20px}
+.minor button{
+  flex:1;background:none;border:1px solid var(--rule);color:var(--soft);
+  padding:12px 4px;font:600 10px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;cursor:pointer;
+}
+.foot{color:var(--dim);font-size:12.5px;line-height:1.55;margin:0}
+.foot.center{text-align:center}
+
+/* ---------------- session ---------------- */
+.bar-wrap{height:2px;background:var(--rule);position:sticky;top:0;z-index:9}
+.bar{height:2px;background:var(--accent);width:0;transition:width .9s linear}
+.screen{padding:calc(22px + env(safe-area-inset-top)) 20px 40px;text-align:center}
+.screen .eyebrow{margin-bottom:10px}
+.exname{font-size:27px;line-height:1.04;margin-bottom:6px}
+.exvar{
+  margin:0 0 18px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);font-weight:700;
+}
+
+.clock{position:relative;width:132px;height:132px;margin:0 auto 18px}
+.clock.inline{width:112px;height:112px;margin-bottom:14px}
+.ring-svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:var(--rule);stroke-width:5}
+.ring-fg{fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round;
+  stroke-dasharray:326.7;stroke-dashoffset:326.7;transition:stroke-dashoffset .9s linear}
+.count{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:40px;font-weight:800;letter-spacing:-.05em;font-variant-numeric:tabular-nums;
+}
+
+.stage{background:var(--stage);margin:0 0 18px;position:relative}
+.stage.small{max-width:260px;margin:0 auto 14px}
+.stage svg{display:block;width:100%;height:auto}
+.switchflag{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:var(--accent);color:#0a0a0b;font:800 15px/1 var(--sans);
+  letter-spacing:.16em;text-transform:uppercase;opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.switchflag.on{opacity:1;animation:pulse .6s ease-in-out 3}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+
+.how{margin:0 0 16px;font-size:15px;line-height:1.55;text-align:left;color:#d7d4ce}
+.how.center{text-align:center;max-width:34ch;margin:0 auto 22px}
+.cues{list-style:none;margin:0 0 24px;padding:14px 0 0;border-top:1px solid var(--rule);text-align:left}
+.cues li{display:flex;gap:11px;margin-bottom:9px;font-size:13.5px;color:var(--soft);line-height:1.45}
+.cues li:last-child{margin-bottom:0}
+.cues .k{
+  flex:0 0 36px;font-size:9.5px;letter-spacing:.1em;font-weight:700;
+  text-transform:uppercase;color:var(--dim);padding-top:3px;
+}
+.cues li.warn .k{color:var(--warn)}
+.cues li.warn{color:#c8b5ab}
+
+.controls{display:flex;gap:8px;margin-bottom:14px}
+.controls button{
+  flex:1;background:none;border:1px solid var(--rule);color:var(--ink);
+  padding:17px 4px;font:700 11px/1 var(--sans);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;
+}
+.controls #pause{border-color:var(--accent);color:var(--accent)}
+.quit{
+  width:100%;background:none;border:0;color:var(--dim);
+  padding:10px;font:600 10px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;cursor:pointer;
+}
+
+.rest .nextlbl{margin:6px 0 4px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);font-weight:700}
+.rest .nextname{font-size:23px;margin-bottom:14px}
+.rest .nextvar{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 24px}
+
+.done{padding-top:calc(70px + env(safe-area-inset-top))}
+.bigdone{font-size:42px;line-height:.95;margin-bottom:20px}
+
+/* ---------------- check-in ---------------- */
+.field{display:block;margin-bottom:20px}
+.flabel{display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);font-weight:700;margin-bottom:8px}
+.field input,.field select{
+  width:100%;background:var(--stage);border:1px solid var(--rule);color:var(--ink);
+  padding:15px;font:600 17px/1 var(--sans);border-radius:0;appearance:none;
+}
+.prev{display:block;margin-top:7px;font-size:11.5px;color:var(--dim)}
+.cmp{width:100%;border-collapse:collapse;margin:0 0 26px;font-size:13.5px}
+.cmp td{padding:11px 4px;border-bottom:1px solid var(--rule);color:var(--soft);text-align:left}
+.cmp td:last-child,.cmp td:nth-child(2){text-align:right;width:64px}
+.cmp td b{color:var(--accent)}
+.cmp .arrow{width:24px;text-align:center;color:var(--dim)}
+
+/* ---------------- figures ---------------- */
+.fig{color:var(--ink)}
+.fig .seg{stroke:currentColor;stroke-linecap:round;fill:none}
+.fig .torso{stroke-width:15}
+.fig .chest{stroke-width:17.5}
+.fig .hips{stroke-width:14}
+.fig .thigh{stroke-width:12}
+.fig .shin{stroke-width:8.5}
+.fig .uarm{stroke-width:8}
+.fig .farm{stroke-width:6.5}
+.fig .foot{stroke-width:6}
+.fig .neck{stroke-width:6.5}
+.fig .head{fill:currentColor;stroke:none}
+.fig .far{opacity:.34}
+.fig .work{stroke:var(--accent)}
+.fig .prop{fill:var(--rule)}
+.fig .ground{stroke:#26262a;stroke-width:2;stroke-dasharray:1 8;stroke-linecap:round}
+
+.fr1{animation:fa 3.4s ease-in-out infinite}
+.fr2{animation:fb 3.4s ease-in-out infinite}
+@keyframes fa{0%,36%{opacity:1}50%,86%{opacity:0}100%{opacity:1}}
+@keyframes fb{0%,36%{opacity:0}50%,86%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.fr1,.fr2{animation:none}.fr2{opacity:.3}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ============================================================
+   8-MINUTE MORNING — routine data, figure renderer, timer
+   ============================================================ */
+
+/* ---------- pose helper ----------------------------------
+   Each pose is a set of joint coordinates in a 220 x 132 box.
+   Ground line sits at y = 122.
+     h   head [x, y, rotation]
+     s   shoulder        hp  hip
+     e   elbow (near)    w   wrist (near)
+     eF  elbow (far)     wF  wrist (far)
+     k   knee (near)     a   ankle (near)   t  toe (near)
+     kF  knee (far)      aF  ankle (far)    tF toe (far)
+     w_  which limbs are highlighted: 'arm' 'leg' 'armF' 'legF'
+   Far limbs are auto-derived with a small offset when omitted,
+   which is what gives the figures their sense of depth.
+---------------------------------------------------------- */
+
+const off = (p, dx, dy) => p ? [p[0] + dx, p[1] + dy] : null;
+
+function fillFar(p) {
+  const q = Object.assign({}, p);
+  if (!q.kF && q.k) { q.kF = off(q.k, 5, 2); q.aF = off(q.a, 5, 2); q.tF = off(q.t, 5, 2); }
+  if (!q.eF && q.e) { q.eF = off(q.e, 5, 2); q.wF = off(q.w, 5, 2); }
+  return q;
+}
+
+function seg(cls, p1, p2, work) {
+  if (!p1 || !p2) return '';
+  return `<line class="seg ${cls}${work ? ' work' : ''}" x1="${p1[0]}" y1="${p1[1]}" x2="${p2[0]}" y2="${p2[1]}"/>`;
+}
+const mid = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+
+function figure(pose, props) {
+  const p = fillFar(pose);
+  const W = p.w_ || [];
+  const has = n => W.indexOf(n) >= 0;
+  let o = '';
+
+  // scenery (chair / couch edges)
+  if (props) props.forEach(r => {
+    o += `<rect class="prop" x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}" rx="2"/>`;
+  });
+
+  // far side limbs, faded back
+  o += `<g class="far"${p.fo ? ` style="opacity:${p.fo}"` : ''}>`;
+  o += seg('thigh', p.hp, p.kF) + seg('shin', p.kF, p.aF) + seg('foot', p.aF, p.tF);
+  o += seg('uarm', p.s, p.eF) + seg('farm', p.eF, p.wF);
+  o += '</g>';
+
+  // trunk
+  o += seg('hips', mid(p.hp, p.s, -0.12), p.hp);
+  o += seg('torso', p.hp, p.s);
+  o += seg('chest', p.s, mid(p.s, p.hp, 0.5));
+  if (p.h) {
+    o += seg('neck', p.s, mid(p.s, [p.h[0], p.h[1]], 0.55));
+    o += `<ellipse class="head" cx="${p.h[0]}" cy="${p.h[1]}" rx="7.4" ry="8.4" transform="rotate(${p.h[2] || 0} ${p.h[0]} ${p.h[1]})"/>`;
+  }
+
+  // near side limbs, in front
+  o += seg('thigh', p.hp, p.k, has('leg')) + seg('shin', p.k, p.a, has('leg')) + seg('foot', p.a, p.t);
+  o += seg('uarm', p.s, p.e, has('arm')) + seg('farm', p.e, p.w, has('arm'));
+
+  return o;
+}
+
+function figureSVG(ex, frame) {
+  const f = ex.f[frame];
+  return `<svg class="fig" viewBox="0 0 220 132" aria-hidden="true">
+    <line class="ground" x1="8" y1="122" x2="212" y2="122"/>
+    ${figure(f, ex.props)}
+  </svg>`;
+}
+
+function figureAnimated(ex) {
+  return `<svg class="fig" viewBox="0 0 220 132" role="img" aria-label="${ex.n}">
+    <line class="ground" x1="8" y1="122" x2="212" y2="122"/>
+    <g class="fr1">${figure(ex.f[0], ex.props)}</g>
+    <g class="fr2">${figure(ex.f[1], ex.props)}</g>
+  </svg>`;
+}
+
+/* ============================================================
+   THE EXERCISES
+   ============================================================ */
+
+const EX = {
+
+  /* ---------------- DAY A ---------------- */
+
+  inchworm: {
+    n: 'Inchworm to cobra', slot: 'Flow', dur: 60,
+    how: "Stand tall. Fold forward, hands to the floor, then walk them out until you're long in a plank. Let the hips sink and lift the chest — that's the cobra. Walk the hands back to your feet and roll up.",
+    c: [['Range', "Legs as straight as they'll go on the way out. That's where the hamstring stretch lives."],
+        ['Tempo', "Four counts out, four back. It's a wake-up, not a sprint."],
+        ['Watch', "Don't let the lower back sag when your hands are furthest forward — squeeze the glutes.", 1]],
+    prog: ['Bend the knees as much as you like', 'Knees soft', 'Legs as straight as they go', 'Add one push-up in the plank', 'Push-up in the plank, then walk the feet to the hands'],
+    f: [
+      { hp:[157,58], s:[128,76], h:[106,97,-46], k:[162,89], a:[167,116], t:[176,118], e:[129,97], w:[127,117] },
+      { hp:[128,112], s:[96,86], h:[83,71,30], k:[150,116], a:[173,117], t:[182,114], e:[93,101], w:[90,118], w_:['arm'] }
+    ]
+  },
+
+  pushup: {
+    n: 'Push-ups, slow', slot: 'Push', dur: 45,
+    how: "Hands under the shoulders, body one straight line from heels to head. Lower your chest towards the floor over two counts, then press back up.",
+    c: [['Line', "Ribs down, glutes squeezed. The hips should not arrive before the chest."],
+        ['Elbows', "Roughly 45° from the body, not flared out sideways."],
+        ['Depth', "Chest to a fist's height off the floor. Half reps do half the work.", 1]],
+    prog: ['Knees on the floor', 'Hands up on the couch', 'Standard, 2s down', '3s down, 1s pause at the bottom', 'Feet up on the couch'],
+    f: [
+      { hp:[126,92], s:[92,80], h:[78,74,72], k:[152,104], a:[176,116], t:[185,118], e:[94,99], w:[96,118] },
+      { hp:[130,104], s:[88,95], h:[74,90,72], k:[154,112], a:[177,118], t:[186,120], e:[100,100], w:[96,118], w_:['arm'] }
+    ]
+  },
+
+  revlunge: {
+    n: 'Reverse lunges', slot: 'Legs', dur: 45,
+    how: "Stand tall. Step one foot back and lower until both knees are bent about 90°, the back knee hovering just off the floor. Push through the front heel to stand. Alternate legs.",
+    c: [['Front leg', "Weight through the front heel — that's what makes it a leg exercise rather than a knee one."],
+        ['Torso', "Chest up, ribs stacked over hips. Don't lean forward to reach the floor."],
+        ['Balance', "If you wobble, step back slightly wider. Wobbling is a width problem, not a strength one."]],
+    prog: ['Half depth, one hand on a wall', 'Full depth, free', '3s on the way down', '2s pause at the bottom', 'Drive the back knee up to the chest on the way up'],
+    f: [
+      { hp:[112,58], s:[110,28], h:[108,16,0], k:[112,88], a:[112,118], t:[121,120], e:[114,46], w:[116,64] },
+      { hp:[104,62], s:[102,32], h:[100,20,0], k:[110,84], a:[112,118], t:[121,120], e:[106,50], w:[108,68],
+        kF:[146,102], aF:[160,116], tF:[169,118], eF:[100,50], wF:[98,68], w_:['leg'] }
+    ]
+  },
+
+  hollow: {
+    n: 'Hollow hold', slot: 'Core', dur: 45,
+    how: "On your back. Press the lower back flat into the floor, then lift shoulders, arms and legs. Everything else stays glued down. Hold and breathe.",
+    c: [['Key', "If the lower back lifts off the floor, raise your legs higher until it flattens. That is the exercise.", 1],
+        ['Arms', "By your ears if you can hold it, hands on your thighs if not."],
+        ['Watch', "Keep breathing. Holding your breath is the tell that it's too hard."]],
+    prog: ['Knees bent, hands on thighs', 'Knees bent, arms by the ears', 'Legs straight, arms by the ears', 'Hollow rocks', 'Hollow rocks, arms long'],
+    f: [
+      { hp:[118,112], s:[86,100], h:[74,92,62], k:[145,102], a:[172,93], t:[179,88], e:[66,92], w:[46,85] },
+      { hp:[119,114], s:[87,103], h:[75,95,62], k:[146,106], a:[173,99], t:[180,94], e:[67,96], w:[47,90] }
+    ]
+  },
+
+  slbridge: {
+    n: 'Single-leg glute bridge', slot: 'Posterior', dur: 45, sides: true,
+    how: "On your back, one foot planted close to your backside, the other leg extended straight out in line with your thigh. Drive through the planted heel and lift the hips. Lower slowly. Halfway through, switch legs.",
+    c: [['Drive', "Push the floor away with the heel. You should feel this in the glute, not the hamstring cramp."],
+        ['Top', "Hips level — don't let the free side drop. Squeeze for a beat at the top."],
+        ['Watch', "Ribs stay down. If you feel it in the lower back, you're arching instead of squeezing.", 1]],
+    prog: ['Two-leg bridge', 'Two-leg, 3s hold at the top', 'Single leg', 'Single leg, 3s hold at the top', 'Single leg, shoulders up on the couch'],
+    f: [
+      { hp:[112,92], s:[72,114], h:[62,117,95], k:[146,86], a:[148,118], t:[158,118], e:[90,119], w:[106,120],
+        kF:[146,74], aF:[178,58], tF:[186,54] },
+      { hp:[112,104], s:[72,116], h:[62,118,95], k:[146,94], a:[148,118], t:[158,118], e:[90,120], w:[106,121],
+        kF:[146,88], aF:[178,74], tF:[186,70] }
+    ]
+  },
+
+  sideplank: {
+    n: 'Side plank', slot: 'Obliques', dur: 45, sides: true,
+    how: "On your side, forearm on the floor and elbow under the shoulder, feet stacked. Lift the hips so you're one straight line. Top arm points at the ceiling. Halfway through, switch sides.",
+    c: [['Stack', "Elbow directly under the shoulder. Any further forward and the shoulder takes the load."],
+        ['Line', "Hips forward, not sagging back. Squeeze the glute of the bottom leg."],
+        ['Neck', "Look straight ahead, not up at your hand."]],
+    prog: ['Knees bent, forearm down', 'Forearm, feet stacked', 'Forearm, top arm reaching up', 'Add a slow hip dip every few seconds', 'Straight arm, top leg lifted'],
+    f: [
+      { hp:[124,100], s:[76,82], h:[65,71,-24], k:[150,110], a:[176,119], t:[186,119], e:[74,62], w:[72,44],
+        eF:[72,116], wF:[54,120], fo:0.85 },
+      { hp:[124,106], s:[76,86], h:[65,75,-24], k:[150,113], a:[176,120], t:[186,120], e:[74,66], w:[72,48],
+        eF:[72,118], wF:[54,121], fo:0.85 }
+    ]
+  },
+
+  lowlunge: {
+    n: 'Low lunge, overhead reach', slot: 'Stretch', dur: 60, sides: true,
+    how: "Back knee on the floor, front foot forward and flat. Sink the hips towards the floor, then reach the arm on the back-knee side up overhead and lean gently away from it. Halfway through, switch sides.",
+    c: [['Hips', "Tuck the tailbone under before you sink. Without that, the stretch goes into the lower back."],
+        ['Reach', "Long through the whole side — armpit to hip, not just the shoulder."],
+        ['Breathe', "Four slow breaths per side. Let it soften rather than forcing it.", 0]],
+    prog: ['Both hands on the floor', 'Torso upright, hands on the front knee', 'Overhead reach', 'Reach plus the side bend', 'Reach, side bend, back knee lifted off the floor'],
+    f: [
+      { hp:[118,72], s:[120,42], h:[118,30,8], k:[98,86], a:[96,118], t:[86,120], e:[126,24], w:[132,9],
+        kF:[152,114], aF:[176,120], tF:[186,118], eF:[114,58], wF:[112,74], w_:['arm'] },
+      { hp:[118,80], s:[123,50], h:[122,38,14], k:[98,92], a:[96,118], t:[86,120], e:[131,32], w:[138,16],
+        kF:[154,118], aF:[178,121], tF:[188,119], eF:[116,66], wF:[114,82], w_:['arm'] }
+    ]
+  },
+
+  /* ---------------- DAY B ---------------- */
+
+  catcow: {
+    n: 'Cat-cow, thread the needle', slot: 'Flow', dur: 60, sides: true,
+    how: "On all fours. Round the spine up, then let it sag and lift the chest — a few slow rounds. Then slide one arm underneath the other, let that shoulder settle towards the floor, and breathe. Swap arms halfway.",
+    c: [['Spine', "Move one vertebra at a time, tail first. Speed defeats the point."],
+        ['Thread', "Let the shoulder drop under its own weight. Don't push into it."],
+        ['Hips', "Keep the hips stacked over the knees while you thread — it's a rotation, not a lean."]],
+    prog: ['Cat-cow only', 'Cat-cow plus the thread', 'Thread and hold 3s', 'Thread, then reach the top arm to the ceiling', 'Thread from a plank position'],
+    f: [
+      { hp:[140,80], s:[82,82], h:[70,74,-25], k:[144,118], a:[156,120], t:[164,119], e:[80,100], w:[78,118] },
+      { hp:[140,84], s:[86,102], h:[74,112,80], k:[144,118], a:[156,120], t:[164,119], e:[106,114], w:[128,120],
+        eF:[84,110], wF:[82,120], w_:['arm'] }
+    ]
+  },
+
+  pike: {
+    n: 'Pike push-ups', slot: 'Push', dur: 45,
+    how: "Hands and feet on the floor, hips high so your body makes an upside-down V. Bend the elbows and lower the crown of your head towards the floor between your hands, then press back up.",
+    c: [['Shape', "Hips as high as you can get them. The more vertical your torso, the more the shoulders work."],
+        ['Head', "Lower towards a point just in front of your hands, not straight down."],
+        ['Watch', "Stop the moment the lower back starts rounding to help. Shorten the range instead.", 1]],
+    prog: ['Hands on the couch, shallow range', 'Floor, small range', 'Full range, head to the floor', 'Feet up on the couch', 'Feet up on the couch, 3s lower'],
+    f: [
+      { hp:[140,62], s:[96,86], h:[86,96,-50], k:[158,96], a:[170,118], t:[179,119], e:[92,102], w:[88,118] },
+      { hp:[142,62], s:[100,96], h:[88,110,-60], k:[159,97], a:[170,118], t:[179,119], e:[110,106], w:[88,118], w_:['arm'] }
+    ]
+  },
+
+  cossack: {
+    n: 'Cossack squats', slot: 'Legs', dur: 45,
+    how: "Stand wide, toes slightly out. Shift your weight over one leg and sink down on it, keeping the other leg straight with its toes pointing up. Come back to the middle and go the other way.",
+    c: [['Heel', "Bent-side heel stays on the floor. If it lifts, go wider or shallower."],
+        ['Straight leg', "Heel down, toes up. That's where the inner-thigh stretch comes from."],
+        ['Chest', "Chest up, arms out in front as a counterweight. Rounding over kills the depth.", 0]],
+    prog: ['Hold a doorframe, half depth', 'Half depth, free', 'Full depth, heel down', 'Full depth, 2s pause at the bottom', 'Full depth, hands overhead'],
+    f: [
+      { hp:[108,96], s:[108,62], h:[108,47,0], k:[82,104], a:[88,120], t:[78,122], e:[94,74], w:[84,80],
+        kF:[148,112], aF:[184,120], tF:[192,116], eF:[122,74], wF:[132,80], fo:0.55 },
+      { hp:[108,96], s:[108,62], h:[108,47,0], k:[134,104], a:[128,120], t:[138,122], e:[122,74], w:[132,80],
+        kF:[68,112], aF:[32,120], tF:[24,116], eF:[94,74], wF:[84,80], fo:0.55 }
+    ]
+  },
+
+  deadbug: {
+    n: 'Dead bug', slot: 'Core', dur: 45,
+    how: "On your back, arms pointing at the ceiling and knees stacked over the hips. Slowly lower one arm behind your head and the opposite leg towards the floor, then bring them back and swap.",
+    c: [['Back', "Lower back stays pressed into the floor for every single rep. That's the whole point.", 1],
+        ['Speed', "Three counts out, three counts back. Fast reps are the ribs cheating."],
+        ['Range', "Only go as far as you can go without the back lifting. Shorten it without guilt."]],
+    prog: ['Arms only', 'Opposite arm and leg, knee stays bent', 'Opposite arm and leg, leg straight', '3s out, 3s back', 'Both legs straight, hovering throughout'],
+    f: [
+      { hp:[126,112], s:[86,114], h:[74,116,95], k:[126,86], a:[150,84], t:[158,80], e:[84,94], w:[82,74],
+        kF:[154,106], aF:[182,100], tF:[190,97], eF:[70,108], wF:[52,100], w_:['arm'] },
+      { hp:[126,112], s:[86,114], h:[74,116,95], k:[154,106], a:[182,100], t:[190,97], e:[70,108], w:[52,100],
+        kF:[126,86], aF:[150,84], tF:[158,80], eF:[84,94], wF:[82,74], w_:['leg'] }
+    ]
+  },
+
+  superman: {
+    n: 'Superman swimmers', slot: 'Posterior', dur: 45,
+    how: "Face down, arms stretched past your head. Lift your right arm and your left leg a hand's width off the floor, hold a beat, lower. Then the other pair, and keep alternating.",
+    c: [['Drive', "Lift from the glute and the upper back — not by cranking the lower back."],
+        ['Head', "Nose stays pointed at the floor. The neck follows the spine."],
+        ['Watch', "Small and slow beats high and fast. A hand's width is plenty.", 1]],
+    prog: ['Arms only', 'Opposite arm and leg', '2s hold on every rep', 'Both arms and legs together, 3s hold', 'Swimmers with a 5s hold at the top'],
+    f: [
+      { hp:[138,109], s:[90,105], h:[75,100,82], k:[159,102], a:[181,94], t:[190,93], e:[70,96], w:[50,88],
+        kF:[160,114], aF:[182,118], tF:[191,116], eF:[72,112], wF:[53,117], w_:['arm','leg'] },
+      { hp:[138,109], s:[90,105], h:[75,100,82], k:[159,115], a:[181,118], t:[190,117], e:[70,113], w:[50,118],
+        kF:[160,104], aF:[182,97], tF:[191,96], eF:[72,99], wF:[53,91], w_:['arm','leg'] }
+    ]
+  },
+
+  shouldertap: {
+    n: 'Plank shoulder taps', slot: 'Obliques', dur: 45,
+    how: "High plank, hands under shoulders, feet a little wider than usual. Lift one hand and tap the opposite shoulder, put it back, then the other. Slowly.",
+    c: [['Hips', "The hips must not rock. That stillness is the exercise, not the tapping.", 1],
+        ['Feet', "Wider feet make it easier, narrow makes it harder. Use that as your dial."],
+        ['Tempo', "One tap per second at most. Rushing just turns it into a wobble."]],
+    prog: ['Knees on the floor', 'Standard plank, small taps', 'Wide feet, full taps', 'Feet together', 'Feet together, 2s per tap'],
+    f: [
+      { hp:[124,92], s:[88,80], h:[76,76,75], k:[148,104], a:[172,116], t:[181,118], e:[102,90], w:[92,74],
+        eF:[86,100], wF:[84,118], w_:['arm'] },
+      { hp:[124,92], s:[88,80], h:[76,76,75], k:[148,104], a:[172,116], t:[181,118], e:[86,99], w:[84,118],
+        eF:[92,101], wF:[90,119] }
+    ]
+  },
+
+  pigeon: {
+    n: 'Pigeon', slot: 'Stretch', dur: 60, sides: true,
+    how: "From all fours, bring one knee forward behind your hands and let that shin settle across in front of you. Slide the other leg straight back. Sit up tall, then fold forward over the front leg. Switch halfway.",
+    c: [['Hips', "Keep both hips facing forward. Rolling onto one side takes the stretch away."],
+        ['Front shin', "The further forward the foot, the stronger the stretch. Start with the heel near the groin."],
+        ['Knees', "Any sharp feeling in the front knee means back off — bring the foot closer in.", 1]],
+    prog: ['Figure-4 stretch lying on your back', 'Pigeon, sitting upright', 'Pigeon, folding onto the forearms', 'Fold flat, 30s per side', 'Fold flat and reach the arm across'],
+    f: [
+      { hp:[120,96], s:[120,64], h:[117,50,6], k:[88,110], a:[122,119], t:[132,120], e:[112,80], w:[106,98],
+        kF:[156,114], aF:[188,120], tF:[196,118], fo:0.45 },
+      { hp:[120,98], s:[107,84], h:[95,95,-46], k:[88,112], a:[122,120], t:[132,121], e:[96,102], w:[86,116],
+        kF:[156,116], aF:[188,121], tF:[196,119], fo:0.45 }
+    ]
+  },
+
+  /* ---------------- DAY C ---------------- */
+
+  wgs: {
+    n: "World's greatest stretch", slot: 'Flow', dur: 60, sides: true,
+    how: "Step into a long lunge. Put both hands inside the front foot and let the hip sink. Then lift the inside hand, rotate and reach it straight up, following it with your eyes. Come back down and swap sides halfway.",
+    c: [['Depth', "Let the back leg stay long and the hips drop before you rotate."],
+        ['Rotation', "Turn from the mid-back, not the lower back. Chest opens towards the ceiling."],
+        ['Eyes', "Follow your hand with your eyes — it takes the rotation further than muscle alone."]],
+    prog: ['Lunge with both hands on the floor', 'Add the elbow towards the instep', 'Add the rotation and reach', 'Rotation with the back knee lifted', 'Rotation, 3s hold at the top'],
+    f: [
+      { hp:[120,74], s:[96,66], h:[84,72,-40], k:[94,84], a:[92,118], t:[82,120], e:[90,90], w:[86,112],
+        kF:[152,98], aF:[182,118], tF:[191,119] },
+      { hp:[120,72], s:[98,60], h:[90,50,20], k:[94,84], a:[92,118], t:[82,120], e:[104,40], w:[110,20],
+        kF:[152,98], aF:[182,118], tF:[191,119], eF:[92,86], wF:[88,112], w_:['arm'] }
+    ]
+  },
+
+  dips: {
+    n: 'Chair dips', slot: 'Push', dur: 45,
+    props: [[150, 88, 58, 5], [198, 92, 5, 30]],
+    how: "Sit on the edge of a chair, hands gripping the edge beside your hips. Slide your backside forward off the seat and lower until your elbows are bent about 90°, then press back up.",
+    c: [['Elbows', "Point them straight back, not out to the sides. Flared elbows are what makes shoulders ache."],
+        ['Depth', "Stop at 90°. Going deeper loads the front of the shoulder and gives nothing back.", 1],
+        ['Body', "Stay close to the chair — drifting forward turns it into a hip exercise."]],
+    prog: ['Knees bent, small range', 'Knees bent, full range', 'Legs straight', 'Legs straight, 3s on the way down', 'Legs straight, heels up on a second chair'],
+    f: [
+      { hp:[118,96], s:[146,70], h:[140,58,5], k:[86,100], a:[82,120], t:[72,121], e:[152,80], w:[157,90] },
+      { hp:[118,110], s:[146,88], h:[140,76,5], k:[86,112], a:[82,120], t:[72,121], e:[164,82], w:[157,90], w_:['arm'] }
+    ]
+  },
+
+  bulgarian: {
+    n: 'Bulgarian split squat', slot: 'Legs', dur: 45, sides: true,
+    props: [[158, 92, 52, 5], [200, 96, 5, 26]],
+    how: "Stand a stride in front of the couch and rest the top of your back foot on it. Lower straight down until the front thigh is roughly level, then drive back up through the front heel. Switch legs halfway.",
+    c: [['Distance', "Far enough forward that the front knee stays over the middle of the foot at the bottom."],
+        ['Down', "Drop straight down, don't lunge forward. Think lift, not push."],
+        ['Watch', "Front heel glued to the floor. If it lifts, step further forward.", 1]],
+    prog: ['Split squat, both feet on the floor', 'Back foot on a low step', 'Back foot on the couch', '3s on the way down', '3s down, 2s pause at the bottom'],
+    f: [
+      { hp:[104,58], s:[104,28], h:[102,16,0], k:[96,84], a:[96,118], t:[86,120], e:[108,46], w:[110,64],
+        kF:[146,84], aF:[168,92], tF:[178,91] },
+      { hp:[104,78], s:[106,48], h:[104,36,0], k:[96,90], a:[96,118], t:[86,120], e:[110,66], w:[112,84],
+        kF:[150,104], aF:[170,94], tF:[180,92], w_:['leg'] }
+    ]
+  },
+
+  revcrunch: {
+    n: 'Reverse crunch', slot: 'Core', dur: 45,
+    how: "On your back, hands flat beside you. Bring your knees towards your chest and lift your hips a few centimetres off the floor, then lower your legs slowly until they hover just above it.",
+    c: [['Lift', "The hips have to leave the floor. Knees-to-chest alone is just swinging your legs.", 1],
+        ['Lower', "Slow on the way down — that's where the muscle is actually built."],
+        ['Back', "The lower back stays down. If it arches on the way out, don't extend as far."]],
+    prog: ['Knees bent, small lift', 'Knees to chest, hips off the floor', 'Legs straightening on the way down', '3s lower with straight legs', 'Legs straight throughout, heels never touch'],
+    f: [
+      { hp:[118,114], s:[72,116], h:[60,118,95], k:[150,108], a:[180,102], t:[188,99], e:[88,120], w:[104,121] },
+      { hp:[114,104], s:[72,116], h:[60,118,95], k:[100,86], a:[122,78], t:[130,74], e:[88,120], w:[104,121], w_:['leg'] }
+    ]
+  },
+
+  birddog: {
+    n: 'Bird-dog', slot: 'Posterior', dur: 45,
+    how: "On all fours, hands under shoulders and knees under hips. Reach one arm straight forward and the opposite leg straight back until both are level with your body. Hold a beat, return, then swap.",
+    c: [['Stillness', "Imagine a glass of water on your lower back. Nothing should spill.", 1],
+        ['Height', "Hand and foot no higher than your back. Higher just arches the spine."],
+        ['Reach', "Think long, not high — reach away in both directions."]],
+    prog: ['Arm only, then leg only', 'Opposite arm and leg', '3s hold on every rep', 'Add an elbow-to-knee crunch between reps', '5s holds with the knees hovering'],
+    f: [
+      { hp:[140,84], s:[84,82], h:[72,78,80], k:[164,82], a:[190,78], t:[198,80], e:[62,78], w:[40,74],
+        kF:[146,118], aF:[158,120], tF:[166,119], eF:[86,100], wF:[84,118], w_:['arm','leg'] },
+      { hp:[140,84], s:[84,82], h:[72,78,80], k:[144,118], a:[156,120], t:[164,119], e:[82,100], w:[80,118],
+        kF:[150,118], aF:[162,120], tF:[170,119], eF:[88,101], wF:[86,119] }
+    ]
+  },
+
+  copenhagen: {
+    n: 'Copenhagen plank', slot: 'Obliques', dur: 45, sides: true,
+    props: [[150, 92, 60, 5]],
+    how: "Side plank on your forearm, but rest the knee of your top leg on the couch. Lift your hips so you're one straight line, letting the bottom leg hang. Switch sides halfway.",
+    c: [['Squeeze', "Pull the top knee down into the couch — that squeeze is what trains the inner thigh."],
+        ['Line', "Hips up and forward. Sagging back makes it a rest, not a plank."],
+        ['Start small', "This one is deceptively hard. Knee on the couch is plenty for months.", 1]],
+    prog: ['Side plank with knees bent', 'Top knee on the couch', 'Top shin on the couch', 'Top foot on the couch', 'Top foot on the couch, bottom leg lifted'],
+    f: [
+      { hp:[126,92], s:[78,94], h:[68,84,-20], k:[140,110], a:[150,120], t:[159,119], e:[88,84], w:[100,88],
+        kF:[152,92], aF:[176,94], tF:[185,92], eF:[70,118], wF:[52,120], fo:0.85 },
+      { hp:[126,99], s:[78,98], h:[68,88,-20], k:[140,114], a:[150,121], t:[159,120], e:[88,89], w:[100,93],
+        kF:[152,93], aF:[176,95], tF:[185,93], eF:[70,119], wF:[52,121], fo:0.85 }
+    ]
+  },
+
+  deepsquat: {
+    n: 'Deep squat hold', slot: 'Stretch', dur: 60,
+    how: "Feet a little wider than your hips, toes turned slightly out. Sink all the way down until you're sitting in the bottom of a squat, heels flat. Elbows inside the knees, chest up. Breathe.",
+    c: [['Heels', "Flat on the floor. If they lift, stand on a folded towel until the ankles loosen."],
+        ['Knees', "Press the knees out with the elbows. That opens the hips rather than the lower back."],
+        ['Time', "A full minute feels long. Shift and fidget — you're looking for range, not stillness.", 0]],
+    prog: ['Heels on a book, holding a doorframe', 'Heels raised, free', 'Heels flat on the floor', 'Heels flat, elbows pressing the knees out', 'Heels flat, alternating overhead reach'],
+    f: [
+      { hp:[120,104], s:[116,72], h:[112,60,-8], k:[88,96], a:[116,118], t:[124,120], e:[100,82], w:[92,96] },
+      { hp:[120,101], s:[116,69], h:[110,57,-12], k:[88,93], a:[116,118], t:[124,120], e:[100,79], w:[92,93] }
+    ]
+  }
+};
+
+/* ============================================================
+   THE ROTATION
+   ============================================================ */
+
+const DAYS = {
+  A: { title: 'Anterior',   ex: ['inchworm', 'pushup', 'revlunge', 'hollow', 'slbridge', 'sideplank', 'lowlunge'] },
+  B: { title: 'Posterior',  ex: ['catcow', 'pike', 'cossack', 'deadbug', 'superman', 'shouldertap', 'pigeon'] },
+  C: { title: 'Legs & back',ex: ['wgs', 'dips', 'bulgarian', 'revcrunch', 'birddog', 'copenhagen', 'deepsquat'] }
+};
+const ORDER = ['A', 'B', 'C'];
+const REST = 15;
+
+/* ============================================================
+   STATE
+   ============================================================ */
+
+const KEY = 'morning8.v1';
+const defState = { level: 3, next: 'A', log: [], checks: [] };
+let S = load();
+
+function load() {
+  try { return Object.assign({}, defState, JSON.parse(localStorage.getItem(KEY) || '{}')); }
+  catch (e) { return Object.assign({}, defState); }
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+}
+
+const today = () => new Date().toISOString().slice(0, 10);
+const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 864e5);
+
+function streak() {
+  if (!S.log.length) return 0;
+  const dates = [...new Set(S.log.map(l => l.d))].sort().reverse();
+  const t = today();
+  let n = 0, cursor = daysBetween(dates[0], t) <= 1 ? dates[0] : null;
+  if (!cursor) return 0;
+  for (const d of dates) {
+    if (d === cursor) { n++; cursor = new Date(new Date(cursor) - 864e5).toISOString().slice(0, 10); }
+  }
+  return n;
+}
+
+function checkDue() {
+  if (!S.checks.length) return S.log.length >= 10;
+  return daysBetween(S.checks[S.checks.length - 1].d, today()) >= 14;
+}
+
+/* ============================================================
+   BUILD THE SEQUENCE
+   ============================================================ */
+
+function buildSequence(dayKey) {
+  const ids = DAYS[dayKey].ex, q = [];
+  ids.forEach((id, i) => {
+    q.push({ kind: 'work', id, dur: EX[id].dur, n: i + 1 });
+    if (i > 0 && i < ids.length - 1) q.push({ kind: 'rest', dur: REST, next: ids[i + 1] });
+  });
+  return q;
+}
+const totalTime = dayKey => buildSequence(dayKey).reduce((a, s) => a + s.dur, 0);
+const mmss = s => Math.floor(s / 60) + ':' + String(Math.round(s) % 60).padStart(2, '0');
+
+/* ============================================================
+   SOUND
+   ============================================================ */
+
+let actx = null;
+function beep(freq, ms, vol) {
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0, actx.currentTime);
+    g.gain.linearRampToValueAtTime(vol || 0.16, actx.currentTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + ms / 1000);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + ms / 1000 + 0.02);
+  } catch (e) {}
+}
+const tick   = () => beep(660, 90, 0.10);
+const go     = () => { beep(880, 150, 0.18); setTimeout(() => beep(1180, 220, 0.18), 150); };
+const switchS= () => { beep(520, 120, 0.16); setTimeout(() => beep(520, 120, 0.16), 180); };
+const done   = () => { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 320, 0.16), i * 150)); };
+
+/* ============================================================
+   SCREENS
+   ============================================================ */
+
+const $ = s => document.querySelector(s);
+const app = () => $('#app');
+let wake = null;
+
+async function lockScreen() {
+  try { if ('wakeLock' in navigator) wake = await navigator.wakeLock.request('screen'); } catch (e) {}
+}
+function unlockScreen() { try { if (wake) { wake.release(); wake = null; } } catch (e) {} }
+
+/* ---------- home ---------- */
+
+function home() {
+  unlockScreen();
+  const d = S.next, day = DAYS[d];
+  const rows = day.ex.map((id, i) => {
+    const e = EX[id];
+    return `<li class="row">
+      <span class="row-n">${String(i + 1).padStart(2, '0')}</span>
+      <span class="row-body">
+        <span class="row-name">${e.n}</span>
+        <span class="row-sub">${e.slot} · ${e.dur}s${e.sides ? ' · per side' : ''}</span>
+      </span>
+      <span class="row-fig">${figureSVG(e, 1)}</span>
+    </li>`;
+  }).join('');
+
+  app().innerHTML = `
+    <header class="mast">
+      <p class="eyebrow">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+      <h1>Day ${d} <span class="dim">/ ${day.title}</span></h1>
+      <p class="stats">
+        <span><b>${mmss(totalTime(d))}</b> total</span>
+        <span><b>L${S.level}</b> level</span>
+        <span><b>${streak()}</b> day streak</span>
+      </p>
+    </header>
+
+    ${checkDue() ? `<button class="banner" onclick="checkin()">
+        <span>Two weeks in — time to re-test</span><span class="arrow">→</span>
+      </button>` : ''}
+
+    <ol class="rows">${rows}</ol>
+
+    <div class="pad">
+      <button class="cta" onclick="startSession()">Start</button>
+      <div class="minor">
+        <button onclick="cycleDay(-1)">← day</button>
+        <button onclick="setLevel(-1)">easier</button>
+        <button onclick="setLevel(1)">harder</button>
+        <button onclick="cycleDay(1)">day →</button>
+      </div>
+      <p class="foot">Level ${S.level} of 5 applies to every exercise. Each card shows the version for your level. ${S.checks.length ? 'Last re-test ' + S.checks[S.checks.length - 1].d + '.' : 'First re-test after ten sessions.'}</p>
+    </div>`;
+}
+
+function cycleDay(dir) {
+  const i = ORDER.indexOf(S.next);
+  S.next = ORDER[(i + dir + ORDER.length) % ORDER.length];
+  save(); home();
+}
+function setLevel(dir) {
+  S.level = Math.min(5, Math.max(1, S.level + dir));
+  save(); home();
+}
+
+/* ---------- session ---------- */
+
+let sess = null;
+
+function startSession() {
+  go(); lockScreen();
+  sess = { day: S.next, q: buildSequence(S.next), i: 0, left: 0, paused: false, switched: false };
+  sess.left = sess.q[0].dur;
+  renderStep(); runClock();
+}
+
+function runClock() {
+  clearInterval(sess.timer);
+  sess.timer = setInterval(() => {
+    if (sess.paused) return;
+    sess.left--;
+
+    const st = sess.q[sess.i];
+    if (st.kind === 'work' && EX[st.id].sides && !sess.switched && sess.left === Math.floor(st.dur / 2)) {
+      sess.switched = true; switchS(); flashSwitch();
+    }
+    if (sess.left <= 3 && sess.left > 0) tick();
+    if (sess.left <= 0) { advance(); return; }
+    paintClock();
+  }, 1000);
+}
+
+function advance() {
+  sess.i++; sess.switched = false;
+  if (sess.i >= sess.q.length) return finish();
+  sess.left = sess.q[sess.i].dur;
+  if (sess.q[sess.i].kind === 'work') go();
+  renderStep();
+}
+
+function jump(dir) {
+  let i = sess.i + dir;
+  while (i > 0 && i < sess.q.length && sess.q[i].kind === 'rest') i += dir;
+  if (i < 0) i = 0;
+  if (i >= sess.q.length) return finish();
+  sess.i = i; sess.left = sess.q[i].dur; sess.switched = false;
+  renderStep();
+}
+
+function togglePause() {
+  sess.paused = !sess.paused;
+  $('#pause').textContent = sess.paused ? 'Resume' : 'Pause';
+  document.body.classList.toggle('paused', sess.paused);
+}
+
+function quit() {
+  clearInterval(sess.timer); sess = null; home();
+}
+
+function flashSwitch() {
+  const el = $('#switchflag');
+  if (!el) return;
+  el.classList.add('on');
+  setTimeout(() => el.classList.remove('on'), 2600);
+}
+
+function progressOf() {
+  const total = sess.q.reduce((a, s) => a + s.dur, 0);
+  let passed = 0;
+  for (let i = 0; i < sess.i; i++) passed += sess.q[i].dur;
+  passed += sess.q[sess.i].dur - sess.left;
+  return passed / total;
+}
+
+function paintClock() {
+  const st = sess.q[sess.i];
+  const c = $('#count'); if (c) c.textContent = sess.left;
+  const r = $('#ring');
+  if (r) {
+    const f = 1 - sess.left / st.dur;
+    r.style.strokeDashoffset = String(326 * (1 - f));
+  }
+  const b = $('#bar'); if (b) b.style.width = (progressOf() * 100).toFixed(2) + '%';
+}
+
+function renderStep() {
+  const st = sess.q[sess.i];
+  const nWork = sess.q.filter(s => s.kind === 'work').length;
+
+  if (st.kind === 'rest') {
+    const e = EX[st.next];
+    app().innerHTML = `
+      <div class="bar-wrap"><div id="bar" class="bar"></div></div>
+      <section class="screen rest">
+        <p class="eyebrow">Rest</p>
+        <div class="clock">
+          <svg viewBox="0 0 120 120" class="ring-svg">
+            <circle class="ring-bg" cx="60" cy="60" r="52"/>
+            <circle id="ring" class="ring-fg" cx="60" cy="60" r="52"/>
+          </svg>
+          <span id="count" class="count">${sess.left}</span>
+        </div>
+        <p class="nextlbl">Next up</p>
+        <h2 class="nextname">${e.n}</h2>
+        <div class="stage small">${figureAnimated(e)}</div>
+        <p class="nextvar">${e.prog[S.level - 1]}</p>
+        <div class="controls">
+          <button onclick="jump(-1)">Back</button>
+          <button id="pause" onclick="togglePause()">Pause</button>
+          <button onclick="jump(1)">Skip</button>
+        </div>
+        <button class="quit" onclick="quit()">End session</button>
+      </section>`;
+    paintClock();
+    return;
+  }
+
+  const e = EX[st.id];
+  app().innerHTML = `
+    <div class="bar-wrap"><div id="bar" class="bar"></div></div>
+    <section class="screen">
+      <p class="eyebrow">${String(st.n).padStart(2, '0')} of ${String(nWork).padStart(2, '0')} · ${e.slot}${e.sides ? ' · per side' : ''}</p>
+      <h2 class="exname">${e.n}</h2>
+      <p class="exvar">${e.prog[S.level - 1]}</p>
+
+      <div class="clock inline">
+        <svg viewBox="0 0 120 120" class="ring-svg">
+          <circle class="ring-bg" cx="60" cy="60" r="52"/>
+          <circle id="ring" class="ring-fg" cx="60" cy="60" r="52"/>
+        </svg>
+        <span id="count" class="count">${sess.left}</span>
+      </div>
+
+      <div class="stage">${figureAnimated(e)}
+        <div id="switchflag" class="switchflag">Switch sides</div>
+      </div>
+
+      <p class="how">${e.how}</p>
+      <ul class="cues">${e.c.map(c => `<li class="${c[2] ? 'warn' : ''}"><span class="k">${c[0]}</span><span>${c[1]}</span></li>`).join('')}</ul>
+
+      <div class="controls">
+        <button onclick="jump(-1)">Back</button>
+        <button id="pause" onclick="togglePause()">Pause</button>
+        <button onclick="jump(1)">Skip</button>
+      </div>
+      <button class="quit" onclick="quit()">End session</button>
+    </section>`;
+  paintClock();
+}
+
+/* ---------- finish ---------- */
+
+function finish() {
+  clearInterval(sess.timer); done(); unlockScreen();
+  const d = sess.day;
+  S.log.push({ d: today(), day: d, level: S.level });
+  S.next = ORDER[(ORDER.indexOf(d) + 1) % ORDER.length];
+  save();
+  sess = null;
+
+  app().innerHTML = `
+    <section class="screen done">
+      <p class="eyebrow">Day ${d} complete</p>
+      <h1 class="bigdone">That's it.</h1>
+      <p class="stats center">
+        <span><b>${streak()}</b> day streak</span>
+        <span><b>${S.log.length}</b> sessions</span>
+        <span><b>L${S.level}</b> level</span>
+      </p>
+      <p class="foot center">Tomorrow is Day ${S.next} — ${DAYS[S.next].title}.</p>
+      ${checkDue() ? `<button class="cta" onclick="checkin()">Do the two-week re-test</button>` : ''}
+      <button class="cta ghost" onclick="home()">Back</button>
+    </section>`;
+}
+
+/* ---------- check-in ---------- */
+
+function checkin() {
+  const prev = S.checks[S.checks.length - 1];
+  app().innerHTML = `
+    <header class="mast">
+      <p class="eyebrow">Re-test · every two weeks</p>
+      <h1>Where are you now?</h1>
+      <p class="lede">Three markers, ninety seconds. Rest a minute between them. Be honest — the numbers only help if they're real.</p>
+    </header>
+    <div class="pad">
+      <label class="field">
+        <span class="flabel">Clean push-ups in 45 seconds</span>
+        <input id="m1" type="number" inputmode="numeric" placeholder="reps">
+        ${prev ? `<span class="prev">last time: ${prev.m1}</span>` : ''}
+      </label>
+      <label class="field">
+        <span class="flabel">Hollow hold to failure, seconds</span>
+        <input id="m2" type="number" inputmode="numeric" placeholder="seconds">
+        ${prev ? `<span class="prev">last time: ${prev.m2}</span>` : ''}
+      </label>
+      <label class="field">
+        <span class="flabel">Deep squat, heels flat</span>
+        <select id="m3">
+          <option value="0">Heels lift or I need support</option>
+          <option value="1">Heels down, but a struggle</option>
+          <option value="2">Comfortable, could sit there</option>
+        </select>
+        ${prev ? `<span class="prev">last time: ${['heels lift', 'a struggle', 'comfortable'][prev.m3]}</span>` : ''}
+      </label>
+      <button class="cta" onclick="saveCheck()">Save and see the verdict</button>
+      <button class="cta ghost" onclick="home()">Not now</button>
+    </div>`;
+}
+
+function saveCheck() {
+  const m1 = +($('#m1').value || 0), m2 = +($('#m2').value || 0), m3 = +$('#m3').value;
+  const prev = S.checks[S.checks.length - 1];
+  const rec = { d: today(), m1, m2, m3, level: S.level };
+  S.checks.push(rec);
+
+  let verdict, note, moved = 0;
+  if (!prev) {
+    verdict = 'Baseline set';
+    note = "Nothing to compare against yet. Stay at level " + S.level + " and re-test in two weeks — that comparison is the useful one.";
+  } else {
+    const up = (m1 > prev.m1) + (m2 > prev.m2 + 2) + (m3 > prev.m3);
+    const dn = (m1 < prev.m1) + (m2 < prev.m2 - 2) + (m3 < prev.m3);
+    if (up >= 2 && S.level < 5) { S.level++; moved = 1; verdict = 'Level up'; note = "Two of three markers improved. You're now on level " + S.level + " — every exercise steps up to its harder version."; }
+    else if (up >= 2) { verdict = 'Top of the scale'; note = "Two of three improved, but you're already at level 5. Hold here and start adding a second round on the days you have ten minutes."; }
+    else if (dn >= 2 && S.level > 1) { S.level--; moved = -1; verdict = 'Level down'; note = "Two of three went backwards. That's information, not failure — often sleep or a busy fortnight. Level " + S.level + " for the next two weeks."; }
+    else { verdict = 'Hold'; note = "Mixed or flat. Stay on level " + S.level + " and repeat the fortnight. Plateaus are normal and usually break on their own."; }
+  }
+  save();
+
+  app().innerHTML = `
+    <section class="screen done">
+      <p class="eyebrow">Re-test saved</p>
+      <h1 class="bigdone">${verdict}</h1>
+      <p class="how center">${note}</p>
+      ${prev ? `<table class="cmp">
+        <tr><td>Push-ups</td><td>${prev.m1}</td><td class="arrow">→</td><td><b>${m1}</b></td></tr>
+        <tr><td>Hollow hold</td><td>${prev.m2}s</td><td class="arrow">→</td><td><b>${m2}s</b></td></tr>
+        <tr><td>Deep squat</td><td>${prev.m3}/2</td><td class="arrow">→</td><td><b>${m3}/2</b></td></tr>
+      </table>` : ''}
+      <button class="cta" onclick="home()">Done</button>
+    </section>`;
+}
+
+/* ---------- boot ---------- */
+window.addEventListener('DOMContentLoaded', home);
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
+
+</script>
+</body>
+</html>
