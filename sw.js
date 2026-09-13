@@ -1,5 +1,5 @@
 /* Offline cache — bump CACHE when you change any file */
-const CACHE = 'morning8-v1';
+const CACHE = 'morning8-v2';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon.svg', './icon.png'];
 
 self.addEventListener('install', e => {
