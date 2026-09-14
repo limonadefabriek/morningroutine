@@ -142,6 +142,26 @@ h1,h2{font-weight:800;letter-spacing:-.035em;text-transform:uppercase;margin:0}
   padding:10px;font:600 10px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;cursor:pointer;
 }
 
+/* next-up strip on an exercise screen */
+.peek{
+  display:flex;align-items:center;gap:12px;text-align:left;
+  border-top:1px solid var(--rule);padding:13px 0 0;margin:0 0 20px;
+}
+.peek-fig{flex:0 0 62px;width:62px;opacity:.5}
+.peek-fig svg{display:block;width:100%;height:auto}
+.peek-body{flex:1;min-width:0}
+.peek-k{
+  display:block;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--accent);font-weight:700;margin-bottom:3px;
+}
+.peek-n{display:block;font-size:14.5px;font-weight:600;color:var(--soft);letter-spacing:-.01em}
+.peek-s{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-top:2px}
+.peek.last{display:block;padding-bottom:2px}
+.peek.last .peek-n{margin-top:1px}
+
+.getset .count{color:var(--accent)}
+.getset .nextname{color:var(--ink)}
+
 .rest .nextlbl{margin:6px 0 4px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);font-weight:700}
 .rest .nextname{font-size:23px;margin-bottom:14px}
 .rest .nextvar{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 24px}
@@ -599,6 +619,7 @@ const DAYS = {
 };
 const ORDER = ['A', 'B', 'C'];
 const REST = 15;
+const READY = 5;   // get-into-position buffer before every exercise
 
 /* ============================================================
    STATE
@@ -643,10 +664,17 @@ function checkDue() {
 function buildSequence(dayKey) {
   const ids = DAYS[dayKey].ex, q = [];
   ids.forEach((id, i) => {
+    q.push({ kind: 'ready', id, dur: READY, n: i + 1 });
     q.push({ kind: 'work', id, dur: EX[id].dur, n: i + 1 });
     if (i > 0 && i < ids.length - 1) q.push({ kind: 'rest', dur: REST, next: ids[i + 1] });
   });
   return q;
+}
+
+// id of the exercise in the next work step after index i, or null if that was the last
+function nextWorkId(i) {
+  for (let j = i + 1; j < sess.q.length; j++) if (sess.q[j].kind === 'work') return sess.q[j].id;
+  return null;
 }
 const totalTime = dayKey => buildSequence(dayKey).reduce((a, s) => a + s.dur, 0);
 const mmss = s => Math.floor(s / 60) + 'm' + String(Math.round(s) % 60).padStart(2, '0') + 'sec';
@@ -774,13 +802,15 @@ function advance() {
   sess.i++; sess.switched = false;
   if (sess.i >= sess.q.length) return finish();
   sess.left = sess.q[sess.i].dur;
-  if (sess.q[sess.i].kind === 'work') go();
+  const k = sess.q[sess.i].kind;
+  if (k === 'work') go();
+  if (k === 'ready') beep(440, 110, 0.12);
   renderStep();
 }
 
 function jump(dir) {
   let i = sess.i + dir;
-  while (i > 0 && i < sess.q.length && sess.q[i].kind === 'rest') i += dir;
+  while (i > 0 && i < sess.q.length && sess.q[i].kind !== 'work') i += dir;
   if (i < 0) i = 0;
   if (i >= sess.q.length) return finish();
   sess.i = i; sess.left = sess.q[i].dur; sess.switched = false;
@@ -823,16 +853,33 @@ function paintClock() {
   const b = $('#bar'); if (b) b.style.width = (progressOf() * 100).toFixed(2) + '%';
 }
 
+// small "what's coming" strip shown under the cues on an exercise screen
+function peek() {
+  const id = nextWorkId(sess.i);
+  if (!id) return `<div class="peek last"><span class="peek-k">Last one</span>
+    <span class="peek-n">Then you're done</span></div>`;
+  const e = EX[id];
+  return `<div class="peek">
+    <span class="peek-fig">${figureSVG(e, 1)}</span>
+    <span class="peek-body">
+      <span class="peek-k">Next</span>
+      <span class="peek-n">${e.n}</span>
+      <span class="peek-s">${e.slot} · ${e.dur}sec${e.sides ? ' · per side' : ''}</span>
+    </span>
+  </div>`;
+}
+
 function renderStep() {
   const st = sess.q[sess.i];
   const nWork = sess.q.filter(s => s.kind === 'work').length;
 
-  if (st.kind === 'rest') {
-    const e = EX[st.next];
+  if (st.kind === 'rest' || st.kind === 'ready') {
+    const ready = st.kind === 'ready';
+    const e = EX[ready ? st.id : st.next];
     app().innerHTML = `
       <div class="bar-wrap"><div id="bar" class="bar"></div></div>
-      <section class="screen rest">
-        <p class="eyebrow">Rest</p>
+      <section class="screen rest${ready ? ' getset' : ''}">
+        <p class="eyebrow">${ready ? 'Get into position' : 'Rest'}</p>
         <div class="clock">
           <svg viewBox="0 0 120 120" class="ring-svg">
             <circle class="ring-bg" cx="60" cy="60" r="52"/>
@@ -840,10 +887,10 @@ function renderStep() {
           </svg>
           <span id="count" class="count">${sess.left}</span>
         </div>
-        <p class="nextlbl">Next up</p>
+        <p class="nextlbl">${ready ? `${String(st.n).padStart(2, '0')} · ${e.slot}` : 'Next up'}</p>
         <h2 class="nextname">${e.n}</h2>
         <div class="stage small">${figureAnimated(e)}</div>
-        <p class="nextvar">${e.prog[S.level - 1]}</p>
+        <p class="nextvar">${e.prog[S.level - 1]}${e.sides ? ' · per side' : ''}</p>
         <div class="controls">
           <button onclick="jump(-1)">Back</button>
           <button id="pause" onclick="togglePause()">Pause</button>
@@ -877,6 +924,8 @@ function renderStep() {
 
       <p class="how">${e.how}</p>
       <ul class="cues">${e.c.map(c => `<li class="${c[2] ? 'warn' : ''}"><span class="k">${c[0]}</span><span>${c[1]}</span></li>`).join('')}</ul>
+
+      ${peek()}
 
       <div class="controls">
         <button onclick="jump(-1)">Back</button>
