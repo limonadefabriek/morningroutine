@@ -159,12 +159,14 @@ h1,h2{font-weight:800;letter-spacing:-.035em;text-transform:uppercase;margin:0}
 .peek.last{display:block;padding-bottom:2px}
 .peek.last .peek-n{margin-top:1px}
 
-.getset .count{color:var(--accent)}
-.getset .nextname{color:var(--ink)}
-
-.rest .nextlbl{margin:6px 0 4px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);font-weight:700}
-.rest .nextname{font-size:23px;margin-bottom:14px}
-.rest .nextvar{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 24px}
+/* the single interval before every exercise */
+.prep .count{color:var(--accent)}
+.prep .preplbl{
+  margin:0 0 8px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--dim);font-weight:700;
+}
+.prep .exname{color:var(--soft)}
+.prep .stage{opacity:.85}
 
 .done{padding-top:calc(70px + env(safe-area-inset-top))}
 .bigdone{font-size:42px;line-height:.95;margin-bottom:20px}
@@ -618,8 +620,7 @@ const DAYS = {
   C: { title: 'Legs & back',ex: ['wgs', 'dips', 'bulgarian', 'revcrunch', 'birddog', 'copenhagen', 'deepsquat'] }
 };
 const ORDER = ['A', 'B', 'C'];
-const REST = 15;
-const READY = 5;   // get-into-position buffer before every exercise
+const PREP = 15;   // one interval before every exercise: rest + read + get into position
 
 /* ============================================================
    STATE
@@ -664,9 +665,8 @@ function checkDue() {
 function buildSequence(dayKey) {
   const ids = DAYS[dayKey].ex, q = [];
   ids.forEach((id, i) => {
-    q.push({ kind: 'ready', id, dur: READY, n: i + 1 });
+    q.push({ kind: 'prep', id, dur: PREP, n: i + 1 });
     q.push({ kind: 'work', id, dur: EX[id].dur, n: i + 1 });
-    if (i > 0 && i < ids.length - 1) q.push({ kind: 'rest', dur: REST, next: ids[i + 1] });
   });
   return q;
 }
@@ -804,7 +804,7 @@ function advance() {
   sess.left = sess.q[sess.i].dur;
   const k = sess.q[sess.i].kind;
   if (k === 'work') go();
-  if (k === 'ready') beep(440, 110, 0.12);
+  if (k === 'prep') beep(440, 110, 0.12);
   renderStep();
 }
 
@@ -873,24 +873,30 @@ function renderStep() {
   const st = sess.q[sess.i];
   const nWork = sess.q.filter(s => s.kind === 'work').length;
 
-  if (st.kind === 'rest' || st.kind === 'ready') {
-    const ready = st.kind === 'ready';
-    const e = EX[ready ? st.id : st.next];
+  if (st.kind === 'prep') {
+    const e = EX[st.id];
     app().innerHTML = `
       <div class="bar-wrap"><div id="bar" class="bar"></div></div>
-      <section class="screen rest${ready ? ' getset' : ''}">
-        <p class="eyebrow">${ready ? 'Get into position' : 'Rest'}</p>
-        <div class="clock">
+      <section class="screen prep">
+        <p class="eyebrow">Next up · get into position</p>
+
+        <div class="clock inline">
           <svg viewBox="0 0 120 120" class="ring-svg">
             <circle class="ring-bg" cx="60" cy="60" r="52"/>
             <circle id="ring" class="ring-fg" cx="60" cy="60" r="52"/>
           </svg>
           <span id="count" class="count">${sess.left}</span>
         </div>
-        <p class="nextlbl">${ready ? `${String(st.n).padStart(2, '0')} · ${e.slot}` : 'Next up'}</p>
-        <h2 class="nextname">${e.n}</h2>
-        <div class="stage small">${figureAnimated(e)}</div>
-        <p class="nextvar">${e.prog[S.level - 1]}${e.sides ? ' · per side' : ''}</p>
+
+        <p class="preplbl">${String(st.n).padStart(2, '0')} of ${String(nWork).padStart(2, '0')} · ${e.slot} · ${e.dur}sec${e.sides ? ' · per side' : ''}</p>
+        <h2 class="exname">${e.n}</h2>
+        <p class="exvar">${e.prog[S.level - 1]}</p>
+
+        <div class="stage">${figureAnimated(e)}</div>
+
+        <p class="how">${e.how}</p>
+        <ul class="cues">${e.c.map(c => `<li class="${c[2] ? 'warn' : ''}"><span class="k">${c[0]}</span><span>${c[1]}</span></li>`).join('')}</ul>
+
         <div class="controls">
           <button onclick="jump(-1)">Back</button>
           <button id="pause" onclick="togglePause()">Pause</button>
