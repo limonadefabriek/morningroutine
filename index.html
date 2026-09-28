@@ -61,6 +61,17 @@ h1,h2{font-weight:800;letter-spacing:-.035em;text-transform:uppercase;margin:0}
 }
 .banner .arrow{font-size:16px}
 
+.quote{
+  margin:0;padding:20px 20px 20px 34px;position:relative;
+  border-bottom:1px solid var(--rule);
+  font-size:18px;line-height:1.32;color:var(--ink);
+  font-weight:600;letter-spacing:-.015em;
+}
+.quote::before{
+  content:"";position:absolute;left:20px;top:23px;
+  width:3px;height:calc(100% - 46px);background:var(--accent);
+}
+
 .rows{list-style:none;margin:0;padding:0}
 .row{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--rule)}
 .row-n{font-size:11px;font-weight:800;color:var(--dim);letter-spacing:.06em;width:18px;flex:0 0 auto}
@@ -102,7 +113,7 @@ h1,h2{font-weight:800;letter-spacing:-.035em;text-transform:uppercase;margin:0}
 .ring-svg{width:100%;height:100%;transform:rotate(-90deg)}
 .ring-bg{fill:none;stroke:var(--rule);stroke-width:5}
 .ring-fg{fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round;
-  stroke-dasharray:326.7;stroke-dashoffset:326.7;transition:stroke-dashoffset .9s linear}
+  stroke-dasharray:326.7;stroke-dashoffset:0;transition:stroke-dashoffset .9s linear}
 .count{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-size:40px;font-weight:800;letter-spacing:-.05em;font-variant-numeric:tabular-nums;
@@ -168,7 +179,11 @@ h1,h2{font-weight:800;letter-spacing:-.035em;text-transform:uppercase;margin:0}
 .prep .exname{color:var(--soft)}
 .prep .stage{opacity:.85}
 
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:99}
+
 .done{padding-top:calc(70px + env(safe-area-inset-top))}
+.done .stats{margin-bottom:14px}
+.done .foot{margin-bottom:34px}
 .bigdone{font-size:42px;line-height:.95;margin-bottom:20px}
 
 /* ---------------- check-in ---------------- */
@@ -580,19 +595,18 @@ const EX = {
     ]
   },
 
-  copenhagen: {
-    n: 'Copenhagen plank', slot: 'Obliques', dur: 45, sides: true,
-    props: [[150, 92, 60, 5]],
-    how: "Side plank on your forearm, but rest the knee of your top leg on the couch. Lift your hips so you're one straight line, letting the bottom leg hang. Switch sides halfway.",
-    c: [['Squeeze', "Pull the top knee down into the couch — that squeeze is what trains the inner thigh."],
-        ['Line', "Hips up and forward. Sagging back makes it a rest, not a plank."],
-        ['Start small', "This one is deceptively hard. Knee on the couch is plenty for months.", 1]],
-    prog: ['Side plank with knees bent', 'Top knee on the couch', 'Top shin on the couch', 'Top foot on the couch', 'Top foot on the couch, bottom leg lifted'],
+  threadplank: {
+    n: 'Side plank rotations', slot: 'Obliques', dur: 45, sides: true,
+    how: "Side plank on your forearm, feet stacked, hips lifted. Reach your top arm straight at the ceiling, then thread it down and under your body, letting the ribs turn with it. Reach back up. Keep rotating, and switch sides halfway.",
+    c: [['Hips', "Hips stay high the whole time. They want to drop as you rotate — do not let them.", 1],
+        ['Turn', "Rotate from the ribs, not the shoulder. The arm just goes where the chest points."],
+        ['Slow', "Two counts down, two back up. Speed here is just momentum doing the work."]],
+    prog: ['Knees bent, reach only', 'Knees bent, full thread', 'Feet stacked, full thread', 'Feet stacked, 2s pause at the bottom', 'Feet stacked, top leg lifted on the reach'],
     f: [
-      { hp:[126,92], s:[78,94], h:[68,84,-20], k:[140,110], a:[150,120], t:[159,119], e:[88,84], w:[100,88],
-        kF:[152,92], aF:[176,94], tF:[185,92], eF:[70,118], wF:[52,120], fo:0.85 },
-      { hp:[126,99], s:[78,98], h:[68,88,-20], k:[140,114], a:[150,121], t:[159,120], e:[88,89], w:[100,93],
-        kF:[152,93], aF:[176,95], tF:[185,93], eF:[70,119], wF:[52,121], fo:0.85 }
+      { hp:[124,100], s:[76,82], h:[65,71,-24], k:[150,110], a:[176,119], t:[186,119], e:[74,62], w:[72,44],
+        eF:[72,116], wF:[54,120], fo:0.85 },
+      { hp:[124,101], s:[78,87], h:[69,77,-8], k:[150,111], a:[176,119], t:[186,119], e:[98,100], w:[121,111],
+        eF:[72,117], wF:[54,121], fo:0.85, w_:['arm'] }
     ]
   },
 
@@ -617,10 +631,51 @@ const EX = {
 const DAYS = {
   A: { title: 'Anterior',   ex: ['inchworm', 'pushup', 'revlunge', 'hollow', 'slbridge', 'sideplank', 'lowlunge'] },
   B: { title: 'Posterior',  ex: ['catcow', 'pike', 'cossack', 'deadbug', 'superman', 'shouldertap', 'pigeon'] },
-  C: { title: 'Legs & back',ex: ['wgs', 'dips', 'bulgarian', 'revcrunch', 'birddog', 'copenhagen', 'deepsquat'] }
+  C: { title: 'Legs & back',ex: ['wgs', 'dips', 'bulgarian', 'revcrunch', 'birddog', 'threadplank', 'deepsquat'] }
 };
 const ORDER = ['A', 'B', 'C'];
 const PREP = 15;   // one interval before every exercise: rest + read + get into position
+
+/* ============================================================
+   QUOTES — one per day, rotating. Add, cut or rewrite freely;
+   the rotation just walks the list.
+   ============================================================ */
+
+const QUOTES = [
+  "Your summer body is being built now",
+  "Niet lullen, maar poetsen",
+  "Your athlete's body is just hidden away",
+  "Even bikkelen",
+  "Rise 'n shine, m*therf*cker",
+  "Schouders eronder",
+  "I love the smell of coffee in the morning",
+  "Doorpakken",
+  "Sleep is for the weekend",
+  "Niet miepen",
+  "You versus the snooze button. Again.",
+  "Handen uit de mouwen",
+  "Early birds catch all the worms",
+  "Geen gezeik, gewoon doen",
+  "Make your future self jealous",
+  "Hobbelen",
+  "Pain is just weakness leaving the building",
+  "Kom op, kanjer",
+  "Coffee after. Always after.",
+  "Lekker bezig, alvast",
+  "Suffer now, smug later",
+  "Tempo, tempo",
+  "Beast mode: mild",
+  "Nobody is coming to do it for you",
+  "Eight minutes. That is it. Come on.",
+  "Momentum is a bastard to restart",
+  "Legends stretch",
+  "Good morning. Get on the floor.",
+  "Do it for the plot",
+  "Strong people are just people who did this yesterday too"
+];
+
+// same quote all day, a new one tomorrow
+const quoteOfDay = () => QUOTES[Math.floor(new Date().setHours(0, 0, 0, 0) / 864e5) % QUOTES.length];
 
 /* ============================================================
    STATE
@@ -743,6 +798,8 @@ function home() {
       </p>
     </header>
 
+    <p class="quote">${quoteOfDay()}</p>
+
     ${checkDue() ? `<button class="banner" onclick="checkin()">
         <span>Two weeks in — time to re-test</span><span class="arrow">→</span>
       </button>` : ''}
@@ -847,8 +904,9 @@ function paintClock() {
   const c = $('#count'); if (c) c.textContent = sess.left;
   const r = $('#ring');
   if (r) {
-    const f = 1 - sess.left / st.dur;
-    r.style.strokeDashoffset = String(326 * (1 - f));
+    // ring starts whole and drains away as the seconds go: offset 0 = full, 326 = empty
+    const remaining = Math.max(0, sess.left) / st.dur;
+    r.style.strokeDashoffset = String(326.7 * (1 - remaining));
   }
   const b = $('#bar'); if (b) b.style.width = (progressOf() * 100).toFixed(2) + '%';
 }
@@ -943,10 +1001,82 @@ function renderStep() {
   paintClock();
 }
 
+/* ---------- confetti ---------- */
+
+function confetti() {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const cv = document.createElement('canvas');
+  cv.className = 'confetti';
+  document.body.appendChild(cv);
+  const ctx = cv.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  function size() {
+    cv.width = window.innerWidth * dpr;
+    cv.height = window.innerHeight * dpr;
+    cv.style.width = window.innerWidth + 'px';
+    cv.style.height = window.innerHeight + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  size();
+
+  const W = () => cv.width / dpr, H = () => cv.height / dpr;
+  const colors = ['#c3f04a', '#ece9e3', '#8fb833', '#ff8a5c', '#6f7d86'];
+  const bits = [];
+
+  // two party poppers in the bottom corners, each firing up and across
+  // angles in degrees, measured from the x-axis, negative = upwards
+  [[0.06, -78, -28], [0.94, -152, -102]].forEach(([xf, a0, a1]) => {
+    for (let i = 0; i < 75; i++) {
+      const ang = (a0 + Math.random() * (a1 - a0)) * Math.PI / 180;
+      const sp = 13 + Math.random() * 13;
+      bits.push({
+        x: W() * xf, y: H() * 0.95,
+        vx: Math.cos(ang) * sp,
+        vy: Math.sin(ang) * sp,
+        w: 5 + Math.random() * 6, h: 3 + Math.random() * 5,
+        rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.4,
+        c: colors[(Math.random() * colors.length) | 0],
+        life: 1
+      });
+    }
+  });
+
+  let start = null;
+  function frame(t) {
+    if (!start) start = t;
+    const age = (t - start) / 1000;
+    ctx.clearRect(0, 0, W(), H());
+
+    let alive = 0;
+    bits.forEach(b => {
+      b.vy += 0.42;              // gravity
+      b.vx *= 0.995;             // drag
+      b.x += b.vx; b.y += b.vy;
+      b.rot += b.vr;
+      if (age > 1.6) b.life = Math.max(0, b.life - 0.022);
+      if (b.y < H() + 40 && b.life > 0) alive++;
+
+      ctx.save();
+      ctx.globalAlpha = b.life;
+      ctx.translate(b.x, b.y);
+      ctx.rotate(b.rot);
+      ctx.fillStyle = b.c;
+      ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+      ctx.restore();
+    });
+
+    if (alive > 0 && age < 6) requestAnimationFrame(frame);
+    else cv.remove();
+  }
+  requestAnimationFrame(frame);
+}
+
 /* ---------- finish ---------- */
 
 function finish() {
-  clearInterval(sess.timer); done(); unlockScreen();
+  clearInterval(sess.timer); done(); unlockScreen(); confetti();
   const d = sess.day;
   S.log.push({ d: today(), day: d, level: S.level });
   S.next = ORDER[(ORDER.indexOf(d) + 1) % ORDER.length];
