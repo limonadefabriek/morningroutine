@@ -94,13 +94,39 @@ h1,h2{font-weight:800;letter-spacing:-.035em;text-transform:uppercase;margin:0}
   flex:1;background:none;border:1px solid var(--rule);color:var(--soft);
   padding:12px 4px;font:600 10px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;cursor:pointer;
 }
+.extras-lbl{
+  margin:0 0 10px;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--dim);font-weight:700;
+}
+.extras{display:flex;gap:8px;margin-bottom:22px}
+.extras button{
+  flex:1;background:none;border:1px solid var(--rule);color:var(--ink);
+  padding:14px 8px;cursor:pointer;font-family:var(--sans);text-align:left;
+}
+.extras .x-n{display:block;font-size:13px;font-weight:600;letter-spacing:-.01em}
+.extras .x-t{display:block;margin-top:3px;font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--accent);font-weight:700}
+
 .foot{color:var(--dim);font-size:12.5px;line-height:1.55;margin:0}
 .foot.center{text-align:center}
 
 /* ---------------- session ---------------- */
-.bar-wrap{height:2px;background:var(--rule);position:sticky;top:0;z-index:9}
+.bar-wrap{height:2px;background:var(--rule)}
+
+/* pinned session header — timer and exercise name stay put while you scroll */
+.topbar{
+  position:sticky;top:0;z-index:12;background:var(--bg);
+  border-bottom:1px solid var(--rule);
+  padding-top:env(safe-area-inset-top);
+}
+.topbar-in{display:flex;align-items:center;gap:15px;padding:12px 20px 13px;text-align:left}
+.topmeta{flex:1;min-width:0}
+.topbar .eyebrow{margin:0 0 3px;font-size:9px;letter-spacing:.16em}
+.topbar .exname{font-size:19px;line-height:1.08;margin:0 0 3px}
+.topbar .exvar{margin:0;font-size:9.5px;letter-spacing:.12em}
+.prep .topbar .exname{color:var(--soft)}
 .bar{height:2px;background:var(--accent);width:0;transition:width .9s linear}
-.screen{padding:calc(22px + env(safe-area-inset-top)) 20px 40px;text-align:center}
+.screen{padding:20px 20px 40px;text-align:center}
 .screen .eyebrow{margin-bottom:10px}
 .exname{font-size:27px;line-height:1.04;margin-bottom:6px}
 .exvar{
@@ -110,6 +136,10 @@ h1,h2{font-weight:800;letter-spacing:-.035em;text-transform:uppercase;margin:0}
 
 .clock{position:relative;width:132px;height:132px;margin:0 auto 18px}
 .clock.inline{width:112px;height:112px;margin-bottom:14px}
+.clock.mini{width:62px;height:62px;margin:0;flex:0 0 62px}
+.clock.mini .count{font-size:23px;letter-spacing:-.04em}
+.ring-fg{stroke-width:5}
+.clock.mini .ring-bg,.clock.mini .ring-fg{stroke-width:6}
 .ring-svg{width:100%;height:100%;transform:rotate(-90deg)}
 .ring-bg{fill:none;stroke:var(--rule);stroke-width:5}
 .ring-fg{fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round;
@@ -171,12 +201,11 @@ h1,h2{font-weight:800;letter-spacing:-.035em;text-transform:uppercase;margin:0}
 .peek.last .peek-n{margin-top:1px}
 
 /* the single interval before every exercise */
-.prep .count{color:var(--accent)}
+.prep .topbar .count{color:var(--accent)}
 .prep .preplbl{
   margin:0 0 8px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;
   color:var(--dim);font-weight:700;
 }
-.prep .exname{color:var(--soft)}
 .prep .stage{opacity:.85}
 
 .confetti{position:fixed;inset:0;pointer-events:none;z-index:99}
@@ -295,19 +324,93 @@ function figure(pose, props) {
 }
 
 function figureSVG(ex, frame) {
-  const f = ex.f[frame];
+  const n = ex.f.length;
+  const i = frame === undefined ? (ex.thumb !== undefined ? ex.thumb : Math.min(1, n - 1)) : Math.min(frame, n - 1);
   return `<svg class="fig" viewBox="0 0 220 132" aria-hidden="true">
     <line class="ground" x1="8" y1="122" x2="212" y2="122"/>
-    ${figure(f, ex.props)}
+    ${figure(ex.f[i], ex.props)}
   </svg>`;
 }
 
-function figureAnimated(ex) {
-  return `<svg class="fig" viewBox="0 0 220 132" role="img" aria-label="${ex.n}">
+/* ------------------------------------------------------------
+   Tweened figure.
+
+   Rather than cross-fading two drawings, this walks the joints
+   from one keyframe to the next and redraws every frame, so the
+   limbs actually travel. Exercises can carry 2, 3 or 4 keyframes;
+   the cycle ping-pongs through them (…→2→3→2→1→0→1→…) which is
+   what a rep looks like.
+------------------------------------------------------------ */
+
+const JOINTS = ['hp', 's', 'k', 'a', 't', 'e', 'w', 'kF', 'aF', 'tF', 'eF', 'wF'];
+
+function lerpPose(A, B, u) {
+  const out = {};
+  JOINTS.forEach(j => {
+    if (A[j] && B[j]) out[j] = [A[j][0] + (B[j][0] - A[j][0]) * u, A[j][1] + (B[j][1] - A[j][1]) * u];
+    else out[j] = A[j] || B[j];
+  });
+  if (A.h && B.h) {
+    out.h = [A.h[0] + (B.h[0] - A.h[0]) * u,
+             A.h[1] + (B.h[1] - A.h[1]) * u,
+             (A.h[2] || 0) + ((B.h[2] || 0) - (A.h[2] || 0)) * u];
+  } else out.h = A.h || B.h;
+  out.fo = A.fo !== undefined ? A.fo : B.fo;
+  out.w_ = u < 0.5 ? A.w_ : B.w_;   // the highlight follows the nearer keyframe
+  return out;
+}
+
+let animId = 0;
+const running = new Map();
+
+function animatedFigure(ex) {
+  const id = ++animId;
+  return `<svg class="fig" data-anim="${id}" viewBox="0 0 220 132" role="img" aria-label="${ex.n}">
     <line class="ground" x1="8" y1="122" x2="212" y2="122"/>
-    <g class="fr1">${figure(ex.f[0], ex.props)}</g>
-    <g class="fr2">${figure(ex.f[1], ex.props)}</g>
+    <g class="body">${figure(ex.f[0], ex.props)}</g>
   </svg>`;
+}
+
+function startAnims(ex) {
+  stopAnims();
+  const svg = document.querySelector('svg[data-anim]');
+  if (!svg) return;
+  const body = svg.querySelector('.body');
+  const poses = ex.f.map(fillFar);
+
+  // a still frame is the right answer when the viewer asked for less motion
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    body.innerHTML = figure(ex.f[Math.min(1, poses.length - 1)], ex.props);
+    return;
+  }
+
+  // ping-pong leg count: 2 poses -> 2 legs, 4 poses -> 6 legs
+  const legs = poses.length === 1 ? 1 : (poses.length - 1) * 2;
+  const cycle = (ex.speed || 2.8) * 1000;
+  let raf = 0, t0 = 0;
+
+  function tick(now) {
+    if (!t0) t0 = now;
+    const phase = ((now - t0) % cycle) / cycle;     // 0..1 over the whole cycle
+    const pos = phase * legs;                        // which leg we are on
+    const leg = Math.floor(pos);
+    let u = pos - leg;
+    u = 0.5 - 0.5 * Math.cos(Math.PI * u);           // ease in and out of each leg
+
+    const half = poses.length - 1;
+    const from = leg < half ? leg : legs - leg;
+    const to = leg < half ? leg + 1 : legs - leg - 1;
+
+    body.innerHTML = figure(lerpPose(poses[from], poses[to], u), ex.props);
+    raf = requestAnimationFrame(tick);
+  }
+  raf = requestAnimationFrame(tick);
+  running.set(svg, () => cancelAnimationFrame(raf));
+}
+
+function stopAnims() {
+  running.forEach(stop => stop());
+  running.clear();
 }
 
 /* ============================================================
@@ -325,8 +428,11 @@ const EX = {
         ['Tempo', "Four counts out, four back. It's a wake-up, not a sprint."],
         ['Watch', "Don't let the lower back sag when your hands are furthest forward — squeeze the glutes.", 1]],
     prog: ['Bend the knees as much as you like', 'Knees soft', 'Legs as straight as they go', 'Add one push-up in the plank', 'Push-up in the plank, then walk the feet to the hands'],
+    thumb: 1, speed: 4200,
     f: [
+      { hp:[165,58], s:[163,28], h:[161,15,0], k:[167,88], a:[167,118], t:[176,120], e:[169,46], w:[171,64] },
       { hp:[157,58], s:[128,76], h:[106,97,-46], k:[162,89], a:[167,116], t:[176,118], e:[129,97], w:[127,117] },
+      { hp:[128,100], s:[96,88], h:[84,82,72], k:[150,110], a:[172,117], t:[181,119], e:[94,103], w:[92,118] },
       { hp:[128,112], s:[96,86], h:[83,71,30], k:[150,116], a:[173,117], t:[182,114], e:[93,101], w:[90,118], w_:['arm'] }
     ]
   },
@@ -425,8 +531,10 @@ const EX = {
         ['Thread', "Let the shoulder drop under its own weight. Don't push into it."],
         ['Hips', "Keep the hips stacked over the knees while you thread — it's a rotation, not a lean."]],
     prog: ['Cat-cow only', 'Cat-cow plus the thread', 'Thread and hold 3s', 'Thread, then reach the top arm to the ceiling', 'Thread from a plank position'],
+    thumb: 1, speed: 4000,
     f: [
-      { hp:[140,80], s:[82,82], h:[70,74,-25], k:[144,118], a:[156,120], t:[164,119], e:[80,100], w:[78,118] },
+      { hp:[140,74], s:[82,76], h:[72,94,-78], k:[144,118], a:[156,120], t:[164,119], e:[80,97], w:[78,118] },
+      { hp:[140,84], s:[82,84], h:[70,70,-20], k:[144,118], a:[156,120], t:[164,119], e:[80,101], w:[78,118] },
       { hp:[140,84], s:[86,102], h:[74,112,80], k:[144,118], a:[156,120], t:[164,119], e:[106,114], w:[128,120],
         eF:[84,110], wF:[82,120], w_:['arm'] }
     ]
@@ -452,11 +560,14 @@ const EX = {
         ['Straight leg', "Heel down, toes up. That's where the inner-thigh stretch comes from."],
         ['Chest', "Chest up, arms out in front as a counterweight. Rounding over kills the depth.", 0]],
     prog: ['Hold a doorframe, half depth', 'Half depth, free', 'Full depth, heel down', 'Full depth, 2s pause at the bottom', 'Full depth, hands overhead'],
+    thumb: 0, speed: 3400,
     f: [
-      { hp:[108,96], s:[108,62], h:[108,47,0], k:[82,104], a:[88,120], t:[78,122], e:[94,74], w:[84,80],
-        kF:[148,112], aF:[184,120], tF:[192,116], eF:[122,74], wF:[132,80], fo:0.55 },
-      { hp:[108,96], s:[108,62], h:[108,47,0], k:[134,104], a:[128,120], t:[138,122], e:[122,74], w:[132,80],
-        kF:[68,112], aF:[32,120], tF:[24,116], eF:[94,74], wF:[84,80], fo:0.55 }
+      { hp:[78,98], s:[78,64], h:[78,49,0], k:[58,102], a:[60,120], t:[50,122], e:[64,76], w:[54,82],
+        kF:[118,110], aF:[160,120], tF:[170,117], eF:[92,76], wF:[102,82], fo:0.55 },
+      { hp:[110,62], s:[110,30], h:[110,15,0], k:[66,92], a:[60,120], t:[50,122], e:[96,42], w:[86,50],
+        kF:[154,92], aF:[160,120], tF:[170,122], eF:[124,42], wF:[134,50], fo:0.55 },
+      { hp:[142,98], s:[142,64], h:[142,49,0], k:[102,110], a:[60,120], t:[50,117], e:[128,76], w:[118,82],
+        kF:[162,102], aF:[160,120], tF:[170,122], eF:[156,76], wF:[166,82], fo:0.55 }
     ]
   },
 
@@ -467,9 +578,12 @@ const EX = {
         ['Speed', "Three counts out, three counts back. Fast reps are the ribs cheating."],
         ['Range', "Only go as far as you can go without the back lifting. Shorten it without guilt."]],
     prog: ['Arms only', 'Opposite arm and leg, knee stays bent', 'Opposite arm and leg, leg straight', '3s out, 3s back', 'Both legs straight, hovering throughout'],
+    thumb: 0, speed: 3600,
     f: [
       { hp:[126,112], s:[86,114], h:[74,116,95], k:[126,86], a:[150,84], t:[158,80], e:[84,94], w:[82,74],
         kF:[154,106], aF:[182,100], tF:[190,97], eF:[70,108], wF:[52,100], w_:['arm'] },
+      { hp:[126,112], s:[86,114], h:[74,116,95], k:[126,86], a:[150,84], t:[158,80], e:[84,94], w:[82,74],
+        kF:[130,88], aF:[154,86], tF:[162,82], eF:[88,96], wF:[86,76] },
       { hp:[126,112], s:[86,114], h:[74,116,95], k:[154,106], a:[182,100], t:[190,97], e:[70,108], w:[52,100],
         kF:[126,86], aF:[150,84], tF:[158,80], eF:[84,94], wF:[82,74], w_:['leg'] }
     ]
@@ -482,9 +596,12 @@ const EX = {
         ['Head', "Nose stays pointed at the floor. The neck follows the spine."],
         ['Watch', "Small and slow beats high and fast. A hand's width is plenty.", 1]],
     prog: ['Arms only', 'Opposite arm and leg', '2s hold on every rep', 'Both arms and legs together, 3s hold', 'Swimmers with a 5s hold at the top'],
+    thumb: 0, speed: 3400,
     f: [
       { hp:[138,109], s:[90,105], h:[75,100,82], k:[159,102], a:[181,94], t:[190,93], e:[70,96], w:[50,88],
         kF:[160,114], aF:[182,118], tF:[191,116], eF:[72,112], wF:[53,117], w_:['arm','leg'] },
+      { hp:[138,109], s:[90,105], h:[75,100,82], k:[160,114], a:[182,118], t:[191,117], e:[72,113], w:[53,118],
+        kF:[162,115], aF:[184,119], tF:[193,118], eF:[74,114], wF:[55,119] },
       { hp:[138,109], s:[90,105], h:[75,100,82], k:[159,115], a:[181,118], t:[190,117], e:[70,113], w:[50,118],
         kF:[160,104], aF:[182,97], tF:[191,96], eF:[72,99], wF:[53,91], w_:['arm','leg'] }
     ]
@@ -621,6 +738,84 @@ const EX = {
       { hp:[120,104], s:[116,72], h:[112,60,-8], k:[88,96], a:[116,118], t:[124,120], e:[100,82], w:[92,96] },
       { hp:[120,101], s:[116,69], h:[110,57,-12], k:[88,93], a:[116,118], t:[124,120], e:[100,79], w:[92,93] }
     ]
+  },
+
+  /* ---------------- extras: abs day + deep stretch ---------------- */
+
+  plank: {
+    n: 'Forearm plank', slot: 'Core', dur: 45,
+    how: "Forearms on the floor, elbows directly under your shoulders, body one straight line from heels to head. Squeeze everything and hold.",
+    c: [['Line', "Hips level with your shoulders. Sagging down or piking up are both ways of resting.", 1],
+        ['Squeeze', "Glutes tight, ribs pulled down. A plank is a whole-body brace, not a wait."],
+        ['Breathe', "Slow breaths through the ribs. If you cannot talk, you are holding your breath."]],
+    prog: ['Knees on the floor', 'Full plank, feet wide', 'Full plank, feet together', 'Lift one foot for 5s at a time', 'Lift opposite hand and foot'],
+    speed: 4000,
+    f: [
+      { hp:[124,92], s:[88,80], h:[76,76,72], k:[148,104], a:[172,116], t:[181,118], e:[88,116], w:[70,120] },
+      { hp:[124,95], s:[88,83], h:[76,79,72], k:[148,106], a:[172,117], t:[181,119], e:[88,117], w:[70,121] }
+    ]
+  },
+
+  bicycle: {
+    n: 'Bicycle crunches', slot: 'Obliques', dur: 45,
+    how: "On your back, hands lightly behind your head, shoulders off the floor. Bring one knee in and turn your chest towards it while the other leg extends long. Swap, slowly.",
+    c: [['Turn', "Rotate the ribcage, not the elbow. Pulling on your head does nothing for your abs.", 1],
+        ['Low', "The extended leg stays low — the lower it goes, the harder it gets."],
+        ['Slow', "One rep per two seconds. Fast bicycles are mostly momentum."]],
+    prog: ['Feet high, small range', 'Knees to 90, slow', 'Extended leg low and straight', '2s hold at each turn', 'Heel hovers a hand above the floor'],
+    thumb: 0, speed: 3200,
+    f: [
+      { hp:[126,112], s:[86,106], h:[74,100,80], k:[106,88], a:[128,80], t:[136,76], e:[96,94], w:[82,92],
+        kF:[158,108], aF:[190,104], tF:[198,102], eF:[78,98], wF:[92,94], w_:['leg'] },
+      { hp:[126,112], s:[86,110], h:[74,104,80], k:[130,96], a:[156,92], t:[164,88], e:[98,98], w:[84,94],
+        kF:[134,98], aF:[160,94], tF:[168,90], eF:[78,100], wF:[92,96] },
+      { hp:[126,112], s:[86,106], h:[74,100,80], k:[158,108], a:[190,104], t:[198,102], e:[96,94], w:[82,92],
+        kF:[106,88], aF:[128,80], tF:[136,76], eF:[78,98], wF:[92,94], w_:['leg'] }
+    ]
+  },
+
+  childs: {
+    n: "Child's pose", slot: 'Stretch', dur: 60,
+    how: "Kneel, sit your hips back towards your heels, and walk your hands forward along the floor until your forehead rests down. Let the back round and breathe into it.",
+    c: [['Hips', "Aim the hips at the heels. Knees wider apart if the belly is in the way."],
+        ['Arms', "Reach long and let the armpits sink — that opens the shoulders and the lats."],
+        ['Breathe', "Breathe into your back, not your chest. Four long breaths, then four more."]],
+    prog: ['Knees together, hands back by your sides', 'Knees wide, arms reaching forward', 'Arms long, forehead resting down', 'Walk the hands to one side, then the other', 'Arms long, hips all the way to the heels, stay still'],
+    speed: 5200,
+    f: [
+      { hp:[150,92], s:[106,110], h:[93,116,14], k:[157,116], a:[173,118], t:[181,115], e:[86,114], w:[62,118] },
+      { hp:[150,96], s:[106,112], h:[93,117,14], k:[157,117], a:[173,119], t:[181,116], e:[86,116], w:[62,119] }
+    ]
+  },
+
+  fold: {
+    n: 'Seated forward fold', slot: 'Stretch', dur: 60,
+    how: "Sit with your legs straight out in front, toes pointing up. Lengthen your spine, then hinge from the hips and walk your hands towards your feet. Hold where it is strong but not sharp.",
+    c: [['Hinge', "Lead with the chest, not the forehead. A rounded-back fold stretches the back, not the hamstrings.", 1],
+        ['Knees', "A soft bend in the knees is fine and often gets you further."],
+        ['Settle', "Do not bounce. Hold still and let it release on the exhale."]],
+    prog: ['Knees bent, hands on your shins', 'Soft knees, hands to the ankles', 'Legs straight, hands towards the feet', 'Legs straight, chest towards the knees', 'Chest to the thighs, hold and breathe'],
+    thumb: 1, speed: 5200,
+    f: [
+      { hp:[80,110], s:[82,78], h:[80,63,0], k:[130,112], a:[178,114], t:[186,107], e:[96,92], w:[112,104] },
+      { hp:[80,110], s:[104,94], h:[116,88,52], k:[130,112], a:[178,114], t:[186,107], e:[132,98], w:[158,108], w_:['arm'] }
+    ]
+  },
+
+  twist: {
+    n: 'Supine twist', slot: 'Stretch', dur: 60, sides: true,
+    how: "On your back, knees bent and drawn up. Let both knees fall together towards the floor on one side while your shoulders stay down. Arms out wide. Switch sides halfway.",
+    c: [['Shoulders', "Both shoulder blades stay on the floor. That is what makes it a twist and not a roll.", 1],
+        ['Knees', "Stacked on top of each other. They do not need to touch the floor."],
+        ['Breathe', "Each exhale lets the knees sink a little further. Do not push them."]],
+    prog: ['Knees high, small drop to the side', 'Knees at 90, drop halfway', 'Knees stacked and dropped low', 'Knees to the floor, opposite arm reaching away', 'Top leg straight, knee to the floor'],
+    speed: 5200,
+    f: [
+      { hp:[120,112], s:[80,114], h:[68,116,95], k:[114,84], a:[139,93], t:[147,90], e:[62,106], w:[44,99],
+        kF:[118,87], aF:[143,96], tF:[151,93], eF:[64,108], wF:[46,101], fo:0.45 },
+      { hp:[120,112], s:[80,114], h:[68,116,95], k:[98,112], a:[120,121], t:[128,119], e:[62,106], w:[44,99],
+        kF:[102,114], aF:[124,122], tF:[132,120], eF:[64,108], wF:[46,101], fo:0.45, w_:['leg'] }
+    ]
   }
 };
 
@@ -631,9 +826,22 @@ const EX = {
 const DAYS = {
   A: { title: 'Anterior',   ex: ['inchworm', 'pushup', 'revlunge', 'hollow', 'slbridge', 'sideplank', 'lowlunge'] },
   B: { title: 'Posterior',  ex: ['catcow', 'pike', 'cossack', 'deadbug', 'superman', 'shouldertap', 'pigeon'] },
-  C: { title: 'Legs & back',ex: ['wgs', 'dips', 'bulgarian', 'revcrunch', 'birddog', 'threadplank', 'deepsquat'] }
+  C: { title: 'Legs & back',ex: ['wgs', 'dips', 'bulgarian', 'revcrunch', 'birddog', 'threadplank', 'deepsquat'] },
+
+  // picked on purpose, never part of the daily rotation
+  D: { title: 'Abs', label: 'Abs session', ex:
+       ['catcow', 'plank', 'revcrunch', 'bicycle', 'hollow', 'threadplank', 'childs'] },
+  E: { title: 'Deep stretch', label: 'Deep stretch', ex:
+       [{ id: 'catcow', dur: 90 }, { id: 'lowlunge', dur: 90 }, { id: 'pigeon', dur: 90 },
+        { id: 'twist', dur: 90 }, { id: 'fold', dur: 90 }, { id: 'deepsquat', dur: 90 },
+        { id: 'childs', dur: 90 }] }
 };
-const ORDER = ['A', 'B', 'C'];
+const ORDER = ['A', 'B', 'C'];        // the rotation
+const EXTRAS = ['D', 'E'];            // on demand only
+
+// a day's exercises as {id, dur}, so a day can stretch an exercise beyond its default
+const dayItems = k => DAYS[k].ex.map(it =>
+  typeof it === 'string' ? { id: it, dur: EX[it].dur } : { id: it.id, dur: it.dur });
 const PREP = 15;   // one interval before every exercise: rest + read + get into position
 
 /* ============================================================
@@ -718,17 +926,17 @@ function checkDue() {
    ============================================================ */
 
 function buildSequence(dayKey) {
-  const ids = DAYS[dayKey].ex, q = [];
-  ids.forEach((id, i) => {
-    q.push({ kind: 'prep', id, dur: PREP, n: i + 1 });
-    q.push({ kind: 'work', id, dur: EX[id].dur, n: i + 1 });
+  const q = [];
+  dayItems(dayKey).forEach((it, i) => {
+    q.push({ kind: 'prep', id: it.id, dur: PREP, n: i + 1 });
+    q.push({ kind: 'work', id: it.id, dur: it.dur, n: i + 1 });
   });
   return q;
 }
 
 // id of the exercise in the next work step after index i, or null if that was the last
-function nextWorkId(i) {
-  for (let j = i + 1; j < sess.q.length; j++) if (sess.q[j].kind === 'work') return sess.q[j].id;
+function nextWorkStep(i) {
+  for (let j = i + 1; j < sess.q.length; j++) if (sess.q[j].kind === 'work') return sess.q[j];
   return null;
 }
 const totalTime = dayKey => buildSequence(dayKey).reduce((a, s) => a + s.dur, 0);
@@ -773,17 +981,17 @@ function unlockScreen() { try { if (wake) { wake.release(); wake = null; } } cat
 /* ---------- home ---------- */
 
 function home() {
-  unlockScreen();
+  unlockScreen(); stopAnims();
   const d = S.next, day = DAYS[d];
-  const rows = day.ex.map((id, i) => {
-    const e = EX[id];
+  const rows = dayItems(d).map((it, i) => {
+    const e = EX[it.id];
     return `<li class="row">
       <span class="row-n">${String(i + 1).padStart(2, '0')}</span>
       <span class="row-body">
         <span class="row-name">${e.n}</span>
-        <span class="row-sub">${e.slot} · ${e.dur}sec${e.sides ? ' · per side' : ''}</span>
+        <span class="row-sub">${e.slot} · ${it.dur}sec${e.sides ? ' · per side' : ''}</span>
       </span>
-      <span class="row-fig">${figureSVG(e, 1)}</span>
+      <span class="row-fig">${figureSVG(e)}</span>
     </li>`;
   }).join('');
 
@@ -814,6 +1022,14 @@ function home() {
         <button onclick="setLevel(1)">harder</button>
         <button onclick="cycleDay(1)">day →</button>
       </div>
+
+      <p class="extras-lbl">Extras — these do not move the rotation</p>
+      <div class="extras">
+        ${EXTRAS.map(k => `<button onclick="startSession('${k}')">
+            <span class="x-n">${DAYS[k].label}</span>
+            <span class="x-t">${mmss(totalTime(k))}</span>
+          </button>`).join('')}
+      </div>
       <p class="foot">Level ${S.level} of 5 applies to every exercise. Each card shows the version for your level. ${S.checks.length ? 'Last re-test ' + S.checks[S.checks.length - 1].d + '.' : 'First re-test after ten sessions.'}</p>
     </div>`;
 }
@@ -832,9 +1048,10 @@ function setLevel(dir) {
 
 let sess = null;
 
-function startSession() {
+function startSession(dayKey) {
+  const d = dayKey || S.next;
   go(); lockScreen();
-  sess = { day: S.next, q: buildSequence(S.next), i: 0, left: 0, paused: false, switched: false };
+  sess = { day: d, q: buildSequence(d), i: 0, left: 0, paused: false, switched: false };
   sess.left = sess.q[0].dur;
   renderStep(); runClock();
 }
@@ -881,7 +1098,7 @@ function togglePause() {
 }
 
 function quit() {
-  clearInterval(sess.timer); sess = null; home();
+  clearInterval(sess.timer); stopAnims(); sess = null; home();
 }
 
 function flashSwitch() {
@@ -904,27 +1121,51 @@ function paintClock() {
   const c = $('#count'); if (c) c.textContent = sess.left;
   const r = $('#ring');
   if (r) {
-    // ring starts whole and drains away as the seconds go: offset 0 = full, 326 = empty
+    // ring starts whole and drains away as the seconds go
+    const C = 2 * Math.PI * r.r.baseVal.value;
     const remaining = Math.max(0, sess.left) / st.dur;
-    r.style.strokeDashoffset = String(326.7 * (1 - remaining));
+    r.style.strokeDasharray = String(C);
+    r.style.strokeDashoffset = String(C * (1 - remaining));
   }
   const b = $('#bar'); if (b) b.style.width = (progressOf() * 100).toFixed(2) + '%';
 }
 
 // small "what's coming" strip shown under the cues on an exercise screen
 function peek() {
-  const id = nextWorkId(sess.i);
-  if (!id) return `<div class="peek last"><span class="peek-k">Last one</span>
+  const st = nextWorkStep(sess.i);
+  if (!st) return `<div class="peek last"><span class="peek-k">Last one</span>
     <span class="peek-n">Then you're done</span></div>`;
-  const e = EX[id];
+  const e = EX[st.id];
   return `<div class="peek">
-    <span class="peek-fig">${figureSVG(e, 1)}</span>
+    <span class="peek-fig">${figureSVG(e)}</span>
     <span class="peek-body">
       <span class="peek-k">Next</span>
       <span class="peek-n">${e.n}</span>
-      <span class="peek-s">${e.slot} · ${e.dur}sec${e.sides ? ' · per side' : ''}</span>
+      <span class="peek-s">${e.slot} · ${st.dur}sec${e.sides ? ' · per side' : ''}</span>
     </span>
   </div>`;
+}
+
+// the bar that stays pinned at the top of a running session
+function topbar(st, e, nWork, label) {
+  return `
+    <div class="topbar">
+      <div class="bar-wrap"><div id="bar" class="bar"></div></div>
+      <div class="topbar-in">
+        <div class="clock mini">
+          <svg viewBox="0 0 80 80" class="ring-svg">
+            <circle class="ring-bg" cx="40" cy="40" r="34"/>
+            <circle id="ring" class="ring-fg" cx="40" cy="40" r="34"/>
+          </svg>
+          <span id="count" class="count">${sess.left}</span>
+        </div>
+        <div class="topmeta">
+          <p class="eyebrow">${label}</p>
+          <h2 class="exname">${e.n}</h2>
+          <p class="exvar">${e.prog[S.level - 1]}</p>
+        </div>
+      </div>
+    </div>`;
 }
 
 function renderStep() {
@@ -933,24 +1174,11 @@ function renderStep() {
 
   if (st.kind === 'prep') {
     const e = EX[st.id];
+    const label = `Next up · ${String(st.n).padStart(2, '0')} of ${String(nWork).padStart(2, '0')} · ${e.slot} · ${e.dur}sec${e.sides ? ' · per side' : ''}`;
     app().innerHTML = `
-      <div class="bar-wrap"><div id="bar" class="bar"></div></div>
+      ${topbar(st, e, nWork, label)}
       <section class="screen prep">
-        <p class="eyebrow">Next up · get into position</p>
-
-        <div class="clock inline">
-          <svg viewBox="0 0 120 120" class="ring-svg">
-            <circle class="ring-bg" cx="60" cy="60" r="52"/>
-            <circle id="ring" class="ring-fg" cx="60" cy="60" r="52"/>
-          </svg>
-          <span id="count" class="count">${sess.left}</span>
-        </div>
-
-        <p class="preplbl">${String(st.n).padStart(2, '0')} of ${String(nWork).padStart(2, '0')} · ${e.slot} · ${e.dur}sec${e.sides ? ' · per side' : ''}</p>
-        <h2 class="exname">${e.n}</h2>
-        <p class="exvar">${e.prog[S.level - 1]}</p>
-
-        <div class="stage">${figureAnimated(e)}</div>
+        <div class="stage">${animatedFigure(e)}</div>
 
         <p class="how">${e.how}</p>
         <ul class="cues">${e.c.map(c => `<li class="${c[2] ? 'warn' : ''}"><span class="k">${c[0]}</span><span>${c[1]}</span></li>`).join('')}</ul>
@@ -962,27 +1190,16 @@ function renderStep() {
         </div>
         <button class="quit" onclick="quit()">End session</button>
       </section>`;
-    paintClock();
+    paintClock(); startAnims(e);
     return;
   }
 
   const e = EX[st.id];
+  const label = `${String(st.n).padStart(2, '0')} of ${String(nWork).padStart(2, '0')} · ${e.slot}${e.sides ? ' · per side' : ''}`;
   app().innerHTML = `
-    <div class="bar-wrap"><div id="bar" class="bar"></div></div>
+    ${topbar(st, e, nWork, label)}
     <section class="screen">
-      <p class="eyebrow">${String(st.n).padStart(2, '0')} of ${String(nWork).padStart(2, '0')} · ${e.slot}${e.sides ? ' · per side' : ''}</p>
-      <h2 class="exname">${e.n}</h2>
-      <p class="exvar">${e.prog[S.level - 1]}</p>
-
-      <div class="clock inline">
-        <svg viewBox="0 0 120 120" class="ring-svg">
-          <circle class="ring-bg" cx="60" cy="60" r="52"/>
-          <circle id="ring" class="ring-fg" cx="60" cy="60" r="52"/>
-        </svg>
-        <span id="count" class="count">${sess.left}</span>
-      </div>
-
-      <div class="stage">${figureAnimated(e)}
+      <div class="stage">${animatedFigure(e)}
         <div id="switchflag" class="switchflag">Switch sides</div>
       </div>
 
@@ -998,7 +1215,7 @@ function renderStep() {
       </div>
       <button class="quit" onclick="quit()">End session</button>
     </section>`;
-  paintClock();
+  paintClock(); startAnims(e);
 }
 
 /* ---------- confetti ---------- */
@@ -1076,23 +1293,25 @@ function confetti() {
 /* ---------- finish ---------- */
 
 function finish() {
-  clearInterval(sess.timer); done(); unlockScreen(); confetti();
+  clearInterval(sess.timer); stopAnims(); done(); unlockScreen(); confetti();
   const d = sess.day;
+  const inRotation = ORDER.indexOf(d) >= 0;
   S.log.push({ d: today(), day: d, level: S.level });
-  S.next = ORDER[(ORDER.indexOf(d) + 1) % ORDER.length];
+  if (inRotation) S.next = ORDER[(ORDER.indexOf(d) + 1) % ORDER.length];
   save();
   sess = null;
 
   app().innerHTML = `
     <section class="screen done">
-      <p class="eyebrow">Day ${d} complete</p>
+      <p class="eyebrow">${inRotation ? 'Day ' + d : DAYS[d].title} complete</p>
       <h1 class="bigdone">That's it.</h1>
       <p class="stats center">
         <span><b>${streak()}</b> day streak</span>
         <span><b>${S.log.length}</b> sessions</span>
         <span><b>L${S.level}</b> level</span>
       </p>
-      <p class="foot center">Tomorrow is Day ${S.next} — ${DAYS[S.next].title}.</p>
+      <p class="foot center">${inRotation ? 'Tomorrow is Day ' + S.next + ' — ' + DAYS[S.next].title + '.'
+        : 'An extra, so the rotation is untouched — Day ' + S.next + ' is still next.'}</p>
       ${checkDue() ? `<button class="cta" onclick="checkin()">Do the two-week re-test</button>` : ''}
       <button class="cta ghost" onclick="home()">Back</button>
     </section>`;
