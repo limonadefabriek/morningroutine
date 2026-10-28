@@ -94,6 +94,16 @@ h1,h2{font-weight:800;letter-spacing:-.035em;text-transform:uppercase;margin:0}
   flex:1;background:none;border:1px solid var(--rule);color:var(--soft);
   padding:12px 4px;font:600 10px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;cursor:pointer;
 }
+.voice{
+  display:flex;width:100%;align-items:center;justify-content:space-between;
+  background:none;border:1px solid var(--rule);color:var(--soft);
+  padding:14px 16px;margin-bottom:20px;cursor:pointer;
+  font:600 11px/1 var(--sans);letter-spacing:.12em;text-transform:uppercase;
+}
+.voice.on{color:var(--ink);border-color:#3a4a18}
+.voice .v-state{color:var(--dim);font-weight:700}
+.voice.on .v-state{color:var(--accent)}
+
 .extras-lbl{
   margin:0 0 10px;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
   color:var(--dim);font-weight:700;
@@ -386,7 +396,7 @@ function startAnims(ex) {
 
   // ping-pong leg count: 2 poses -> 2 legs, 4 poses -> 6 legs
   const legs = poses.length === 1 ? 1 : (poses.length - 1) * 2;
-  const cycle = (ex.speed || 2.8) * 1000;
+  const cycle = ex.speed || 2800;   // milliseconds for one full there-and-back cycle
   let raf = 0, t0 = 0;
 
   function tick(now) {
@@ -752,7 +762,7 @@ const EX = {
     speed: 4000,
     f: [
       { hp:[124,92], s:[88,80], h:[76,76,72], k:[148,104], a:[172,116], t:[181,118], e:[88,116], w:[70,120] },
-      { hp:[124,95], s:[88,83], h:[76,79,72], k:[148,106], a:[172,117], t:[181,119], e:[88,117], w:[70,121] }
+      { hp:[124,96], s:[88,86], h:[76,83,72], k:[148,107], a:[172,117], t:[181,119], e:[88,117], w:[70,121] }
     ]
   },
 
@@ -784,7 +794,7 @@ const EX = {
     speed: 5200,
     f: [
       { hp:[150,92], s:[106,110], h:[93,116,14], k:[157,116], a:[173,118], t:[181,115], e:[86,114], w:[62,118] },
-      { hp:[150,96], s:[106,112], h:[93,117,14], k:[157,117], a:[173,119], t:[181,116], e:[86,116], w:[62,119] }
+      { hp:[150,101], s:[106,115], h:[93,119,14], k:[157,118], a:[173,120], t:[181,117], e:[86,118], w:[62,121] }
     ]
   },
 
@@ -890,7 +900,7 @@ const quoteOfDay = () => QUOTES[Math.floor(new Date().setHours(0, 0, 0, 0) / 864
    ============================================================ */
 
 const KEY = 'morning8.v1';
-const defState = { level: 3, next: 'A', log: [], checks: [] };
+const defState = { level: 3, next: 'A', log: [], checks: [], voice: true };
 let S = load();
 
 function load() {
@@ -966,6 +976,60 @@ const switchS= () => { beep(520, 120, 0.16); setTimeout(() => beep(520, 120, 0.1
 const done   = () => { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 320, 0.16), i * 150)); };
 
 /* ============================================================
+   VOICE — the phone's own speech synthesiser, so nothing is
+   downloaded and it works offline. Lines are deliberately clipped;
+   you should be able to follow the session without looking.
+   ============================================================ */
+
+const SIGNOFF = [
+  "Done. Now tell Jan about it.",
+  "That is it. Coffee. You have earned it.",
+  "Finished. Try being this disciplined about everything else, like Jan.",
+  "Done. Same time tomorrow, hero.",
+  "Klaar. Lekker bezig.",
+  "That is seven minutes you will never regret.",
+  "Done. You can thank yourself, and Jan, for this.",
+  "Finished. Nobody can take that one back.",
+  "Dat was hem. Doorpakken morgen.",
+  "Done. Legends are made in the morning."
+];
+
+let VOICE = null;
+const speechOK = () => typeof window !== 'undefined' && 'speechSynthesis' in window;
+
+function pickVoice() {
+  if (!speechOK()) return null;
+  const all = speechSynthesis.getVoices();
+  if (!all.length) return null;
+  const en = all.filter(v => /^en/i.test(v.lang));
+  const want = [/daniel/i, /arthur/i, /google uk english male/i, /alex/i, /aaron/i,
+                /oliver/i, /fred/i, /rishi/i, /\bmale\b/i];
+  for (const re of want) { const m = en.find(v => re.test(v.name)); if (m) return m; }
+  return en[0] || all[0];
+}
+if (speechOK()) speechSynthesis.addEventListener('voiceschanged', () => { VOICE = pickVoice(); });
+
+function say(text, queue) {
+  if (!S.voice || !speechOK() || !text) return;
+  try {
+    if (!VOICE) VOICE = pickVoice();
+    const u = new SpeechSynthesisUtterance(text);
+    if (VOICE) { u.voice = VOICE; u.lang = VOICE.lang; }
+    u.rate = 1.02; u.pitch = 0.6; u.volume = 1;   // low pitch for the gruff register
+    if (!queue) speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+const hush = () => { try { if (speechOK()) speechSynthesis.cancel(); } catch (e) {} };
+
+function toggleVoice() {
+  S.voice = !S.voice; save();
+  if (S.voice) say('Voice on.');
+  else hush();
+  home();
+}
+
+/* ============================================================
    SCREENS
    ============================================================ */
 
@@ -1023,6 +1087,10 @@ function home() {
         <button onclick="cycleDay(1)">day →</button>
       </div>
 
+      <button class="voice ${S.voice ? 'on' : ''}" onclick="toggleVoice()">
+        <span>Voice guidance</span><span class="v-state">${S.voice ? 'On' : 'Off'}</span>
+      </button>
+
       <p class="extras-lbl">Extras — these do not move the rotation</p>
       <div class="extras">
         ${EXTRAS.map(k => `<button onclick="startSession('${k}')">
@@ -1051,6 +1119,7 @@ let sess = null;
 function startSession(dayKey) {
   const d = dayKey || S.next;
   go(); lockScreen();
+  say('Next up. ' + EX[(typeof DAYS[d].ex[0] === 'string' ? DAYS[d].ex[0] : DAYS[d].ex[0].id)].n + '.');
   sess = { day: d, q: buildSequence(d), i: 0, left: 0, paused: false, switched: false };
   sess.left = sess.q[0].dur;
   renderStep(); runClock();
@@ -1064,8 +1133,10 @@ function runClock() {
 
     const st = sess.q[sess.i];
     if (st.kind === 'work' && EX[st.id].sides && !sess.switched && sess.left === Math.floor(st.dur / 2)) {
-      sess.switched = true; switchS(); flashSwitch();
+      sess.switched = true; switchS(); flashSwitch(); say('Other side.');
     }
+    if (st.kind === 'work' && st.dur >= 30 && sess.left === 5) say('Five seconds.');
+    if (st.kind === 'prep' && sess.left === 3) say('Ready.');
     if (sess.left <= 3 && sess.left > 0) tick();
     if (sess.left <= 0) { advance(); return; }
     paintClock();
@@ -1077,12 +1148,13 @@ function advance() {
   if (sess.i >= sess.q.length) return finish();
   sess.left = sess.q[sess.i].dur;
   const k = sess.q[sess.i].kind;
-  if (k === 'work') go();
-  if (k === 'prep') beep(440, 110, 0.12);
+  if (k === 'work') { go(); say('Go.'); }
+  if (k === 'prep') { beep(440, 110, 0.12); say('Next up. ' + EX[sess.q[sess.i].id].n + '.'); }
   renderStep();
 }
 
 function jump(dir) {
+  hush();
   let i = sess.i + dir;
   while (i > 0 && i < sess.q.length && sess.q[i].kind !== 'work') i += dir;
   if (i < 0) i = 0;
@@ -1098,7 +1170,7 @@ function togglePause() {
 }
 
 function quit() {
-  clearInterval(sess.timer); stopAnims(); sess = null; home();
+  clearInterval(sess.timer); stopAnims(); hush(); sess = null; home();
 }
 
 function flashSwitch() {
@@ -1294,6 +1366,7 @@ function confetti() {
 
 function finish() {
   clearInterval(sess.timer); stopAnims(); done(); unlockScreen(); confetti();
+  say(SIGNOFF[Math.floor(Math.random() * SIGNOFF.length)]);
   const d = sess.day;
   const inRotation = ORDER.indexOf(d) >= 0;
   S.log.push({ d: today(), day: d, level: S.level });
